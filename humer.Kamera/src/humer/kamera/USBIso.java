@@ -1,9 +1,4 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
-package humer.kamera;
+// Copyright 2015 Christian d'Heureuse, Inventec Informatik AG, Zurich, Switzerland
 // www.source-code.biz, www.inventec.ch/chdh
 //
 // This module is multi-licensed and may be used under the terms of any of the following licenses:
@@ -16,14 +11,18 @@ package humer.kamera;
 //
 // Home page: http://www.source-code.biz/snippets/java/UsbIso
 
+package humer.kamera;
 
 import com.sun.jna.LastErrorException;
-import com.sun.jna.Library;
 import com.sun.jna.Memory;
 import com.sun.jna.Native;
 import com.sun.jna.Pointer;
 import com.sun.jna.Structure;
 import com.sun.jna.ptr.PointerByReference;
+import static humer.kamera.Ioctl._IO;
+import static humer.kamera.Ioctl._IOR;
+import static humer.kamera.Ioctl._IOW;
+import humer.kamera.USBIso.Request;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -31,16 +30,42 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
+ * An USB isochronous transfer controller.
+ * <p>
+ * This class is used to read and write from an isochronous endpoint of an USB device.
+ * It uses JNA to access the USBFS API via IOCTL calls.
+ * USBFS is available in the Linux kernel and can be accessed from an Android application.
+ * <p>
+ * This class is independent of Android and could also be used under other Linux based operating systems.
+ * <p>
+ * The following program logic may be used e.g. for reading the video data stream from an UVC compliant camera:
+ * <pre>
+ *   ... set streaming parameters via control channel (SET_CUR VS_COMMIT_CONTROL, etc.) ...
+ *   usbIso.preallocateRequests(n);
+ *   usbIso.setInterface(interfaceId, altSetting);       // enable streaming
+ *   for (int i = 0; i &lt; n; i++) {                       // submit initial transfer requests
+ *      Request req = usbIso.getRequest();
+ *      req.initialize(endpointAddr);
+ *      req.submit(); }
+ *   while (...) {                                       // streaming loop
+ *      Request req = usbIso.reapRequest(true);          // wait for next request completion
+ *      .. process received data ...
+ *      req.initialize(endpointAddr);                    // re-use the request
+ *      req.submit(); }                                  // re-submit the request
+ *   usbIso.setInterface(interfaceId, 0);                // disable streaming
+ *   usbIso.flushRequests();                             // remove pending requests</pre>
  *
- * @author peter
+ * Note that for e.g. an USB2 UVC camera, data packets arrive at a rate of 125 microseconds per packet.
+ * This corresponds to 8000 packets per second. Each packet may contain up to 3072 bytes.
+ *
+ * @see <a href="https://www.kernel.org/doc/htmldocs/usb/usbfs.html">USBFS</a>
+ * @see <a href="http://en.wikipedia.org/wiki/Java_Native_Access">JNA</a>
+ * @see <a href="http://en.wikipedia.org/wiki/Ioctl">IOCTL</a>
  */
 @SuppressWarnings({"PointlessBitwiseExpression", "unused", "SpellCheckingInspection"})
-
-
 public class USBIso {
     
  
@@ -49,17 +74,17 @@ public class USBIso {
 // for ARM 32 bit. For other environments (X86, 64 bit, future Linux kernels), it might be
 // necessary to adjust some values.
 
-    private static final int usbSetIntSize = 8;                // size of struct usbdevfs_setinterface
-    private static final int USBDEVFS_URB_TYPE_ISO = 0;
+    private static final int usbSetIntSize = new Usbdevfs_setinterface().size();                // size of struct usbdevfs_setinterface
+    private static final byte USBDEVFS_URB_TYPE_ISO = 0;
     private static final int USBDEVFS_URB_ISO_ASAP = 2;
 
     // IOCTL function codes:
-    private static final int USBDEVFS_SETINTERFACE = (2 << 30) | (usbSetIntSize << 16) | (0x55 << 8) | 4;
-    private static final int USBDEVFS_SUBMITURB = (2 << 30) | (Urb.urbBaseSize << 16) | (0x55 << 8) | 10;
-    private static final int USBDEVFS_DISCARDURB = (0 << 30) | (0 << 16) | (0x55 << 8) | 11;
-    private static final int USBDEVFS_REAPURB = (1 << 30) | (Pointer.SIZE << 16) | (0x55 << 8) | 12;
-    public static final int USBDEVFS_REAPURBNDELAY = (1 << 30) | (Pointer.SIZE << 16) | (0x55 << 8) | 13;
-    private static final int USBDEVFS_CLEAR_HALT = (2 << 30) | (4 << 16) | (0x55 << 8) | 21;
+    public static final int USBDEVFS_SETINTERFACE = _IOR('U', 4, new Usbdevfs_setinterface().size());
+    public static final int USBDEVFS_SUBMITURB = _IOR('U', 10, new USBIso.Urb.usbdevfs_urb().size());
+    public static final int USBDEVFS_DISCARDURB = _IO('U', 11);
+    public static final int USBDEVFS_REAPURB = _IOW('U', 12, Pointer.SIZE);
+    public static final int USBDEVFS_REAPURBNDELAY = _IOW('U', 13, Pointer.SIZE);
+    public static final int USBDEVFS_CLEAR_HALT = _IOR('U', 21, 4);
 
     //--- Native data structures ---------------------------------------------------
     private static final int EAGAIN = 11;
@@ -69,8 +94,6 @@ public class USBIso {
     private static final int EINVAL = 22;
 
     //--- Main logic ---------------------------------------------------------------
-    private static Libc libc;
-    private static boolean staticInitDone;
     private int fileDescriptor;
     private ArrayList<Request> requests = new ArrayList<>();
     private int maxPacketsPerRequest;
@@ -87,8 +110,6 @@ public class USBIso {
     public native int nativPaketStatus();
     public static native int fd();
         
-    private Memory buffer = new Memory (3072);
-    
     public Memory benutzerkontext = new Memory (1);
     
 
@@ -104,22 +125,9 @@ public class USBIso {
      * @param maxPacketSize        The maximum packet size.
      */
     public USBIso(int fileDescriptor, int maxPacketsPerRequest, int maxPacketSize) {
-        staticInit();
         this.fileDescriptor = fileDescriptor;
         this.maxPacketsPerRequest = maxPacketsPerRequest;
         this.maxPacketSize = maxPacketSize;
-    }
-
-    private static synchronized void staticInit() {
-        if (staticInitDone) {
-            return;
-        }
-        if (new Usbdevfs_setinterface().size() != usbSetIntSize) {
-            throw new RuntimeException("Value of usbSetIntSize constant does not match structure size.");
-        }
-        libc = (Libc) Native.loadLibrary("c", Libc.class);
-
-        staticInitDone = true;
     }
 
     /**
@@ -191,16 +199,15 @@ public class USBIso {
         p.interfaceId = interfaceId;
         p.altsetting = altSetting;
         p.write();
-        int rc = libc.ioctl(fileDescriptor, USBDEVFS_SETINTERFACE, p.getPointer());
+        int rc = Libc.INSTANCE.ioctl(fileDescriptor, USBDEVFS_SETINTERFACE, p.getPointer());
         if (rc != 0) {
             throw new IOException("ioctl(USBDEVFS_SETINTERFACE) failed, rc=" + rc + ".");
         }
     }
-
+    
     /**
      * Modeled after struct usbdevfs_setinterface in <linuxKernel>/include/uapi/linux/usbdevice_fs.h.
      */
-    
     public static class Usbdevfs_setinterface extends Structure {
         public int interfaceId;
         public int altsetting;
@@ -212,8 +219,7 @@ public class USBIso {
                     "altsetting");
         }
     }
-    
-    
+
     /**
      * Returns an inactive <code>Request</code> object that can be submitted to the device driver.
      * <p>
@@ -246,7 +252,7 @@ public class USBIso {
      * @return A <code>Request</code> object representing a completed request, or <code>null</code> if
      * <code>wait</code> is <code>false</code> and no completed request is available at the time.
      */
-    public Request reapRequest(boolean wait) {
+    public Request reapRequest(boolean wait) throws IOException {
      
         PointerByReference urbPointer = new PointerByReference();
         int func = wait ? USBDEVFS_REAPURB : USBDEVFS_REAPURBNDELAY;
@@ -257,7 +263,7 @@ public class USBIso {
             System.out.println("vor Reaprequest fileDescriptor = " + fileDescriptor );
           //  func = USBDEVFS_REAPURBNDELAY;
           
-              rc = libc.ioctl(fileDescriptor, func, urbPointer);
+              rc = Libc.INSTANCE.ioctl(fileDescriptor, func, urbPointer);
           
         } catch (LastErrorException e) {
             // logger.log(Level.SEVERE, null, e);
@@ -272,13 +278,14 @@ public class USBIso {
         if (rc != 0) {
             //throw new IOException("ioctl(USBDEVFS_REAPURB*) failed, rc=" + rc + ".");
         }
-        
-        int urbNdx = Urb.getUserContext(urbPointer.getValue());
+
+        Urb urb = new Urb(urbPointer.getValue());
+        int urbNdx = urb.getUserContext();
         if (urbNdx < 0 || urbNdx >= requests.size()) {
-          //  throw new IOException("URB.userContext returned by ioctl(USBDEVFS_REAPURB*) is out of range.");
+            throw new IOException("URB.userContext returned by ioctl(USBDEVFS_REAPURB*) is out of range.");
         }
         Request req = requests.get(urbNdx);
-        if (req.urbAddr != Pointer.nativeValue(urbPointer.getValue())) {
+        if (! req.getUrb().getNativeUrbAddr().equals(urbPointer.getValue())) {
            // throw new IOException("Address of URB returned by ioctl(USBDEVFS_REAPURB*) does not match.");
         }
         if (!req.queued) {
@@ -294,31 +301,31 @@ public class USBIso {
     
     
     public Request reapRequest1(boolean wait, int anzahl) throws IOException {
-        
+
         Request req = requests.get(anzahl);
-        Pointer p = req.p;
+        Pointer p = req.getUrb().getNativeUrbAddr();
         System.out.println("Vor reapRequest1: p = " + p);
-        long urbAddr = req.urbAddr;
-        
+//        long urbAddr = req.urbAddr;
+
         //Pointer p = urb.getNativeUrbPointer();
         //System.out.println("Vor reapRequest1: Pointer = " + p);
         //int bufSize = maxPacketsPerRequest * maxPacketSize;
         //System.out.println(" bufSize = " +bufSize);   //   bufSize = 12288
         //buffer = new Memory(bufSize);
-        
+
         PointerByReference urbPointer = new PointerByReference(p);
-        
+
         int func = wait ? USBDEVFS_REAPURB : USBDEVFS_REAPURBNDELAY;
         int rc;
-      
+
         try {
             System.out.println("vor Reaprequest func = " + func +". Der Pointer hat folgenden Wert: " + Pointer.nativeValue(urbPointer.getValue()));
             //System.out.println("vor Reaprequest fileDescriptor = " + fileDescriptor );
             //  func = USBDEVFS_REAPURB;
             //System.out.println("vor Reap IOCTL URBAdresse = " +urbAddr);
-          
-            rc = libc.ioctl(fileDescriptor, func, urbPointer);
-          
+
+            rc = Libc.INSTANCE.ioctl(fileDescriptor, func, urbPointer);
+
         } catch (LastErrorException e) {
             // logger.log(Level.SEVERE, null, e);
             System.out.println("ReapRequest fehlgeschlagen " +e);
@@ -326,24 +333,24 @@ public class USBIso {
                 return null;
             }
             throw e;
-           
+
         }
-        
+
         if (rc == -1) {
-            System.out.println("Urbstatus:  " + req.getUrbStaus());
+            System.out.println("Urbstatus:  " + req.getUrb().getStatus());
             System.out.println("Paketstatus vom Paket 0:  " + req.getPacketStatus(0));
-            
+
             req.queued = false;
             req.initialized = false;
             return req;
-            
+
         } else {
-  
+
         System.out.println("nach Reaprequest func = " +func);
         if (rc != 0) {
             //throw new IOException("ioctl(USBDEVFS_REAPURB*) failed, rc=" + rc + ".");
         }
-        
+
         //int urbNdx = Urb.getUserContext(urbPointer.getValue());
         /*
         int urbNdx = 1;
@@ -355,7 +362,7 @@ public class USBIso {
         if (req.urbAddr != Pointer.nativeValue(urbPointer.getValue())) {
             throw new IOException("Address of URB returned by ioctl(USBDEVFS_REAPURB*) does not match.");
         }
-        
+
         if (req.urbAddr != 1) {
             throw new IOException("Address of URB returned by ioctl(USBDEVFS_REAPURB*) does not match.");
         }
@@ -367,7 +374,7 @@ public class USBIso {
         req.initialized = false;
         return req;
         }
-        
+
     }
     
 
@@ -391,124 +398,187 @@ public class USBIso {
         }
         return ctr;
     }
-
-    private interface Libc extends Library {
-        
-        int ioctl(int fileHandle, int request, PointerByReference p) throws LastErrorException;
-
-        int ioctl(int fileHandle, int request, Pointer p) throws LastErrorException;
-
-        int ioctl(int fileHandle, int request, long i) throws LastErrorException;
-        
-    }
-
     /**
      * This class is modeled after struct usbdevfs_urb in <linuxKernel>/include/linux/usbdevice_fs.h
      * At first I implemented the URB structure directly using com.sun.jna.Structure, but that was extremely slow.
      * Therefore byte offsets are now used to access the fields of the structure.
      */
-    private static class Urb {
-        
-          public static long a;
+    public static class Urb {
+        /**
+         * At the end of usbdevfs_urb follows an array of usbdevfs_iso_packet_desc
+         * these are not modelled in this case, as JNA gets the offsets wrong in
+         * this case
+         */
+        public static final class usbdevfs_urb extends Structure {
+            public byte type;
+            public byte endpoint;
+            public int status;
+            public int flags;
+            public Pointer buffer;
+            public int buffer_length;
+            public int actual_length;
+            public int start_frame;
+            public int number_of_packets_stream_id; // this is a union
+            public int error_count;
+            public int signr;
+            public Pointer usercontext;
+
+            @Override
+            protected List<String> getFieldOrder() {
+                return Arrays.asList("type", "endpoint", "status", "flags",
+                        "buffer", "buffer_length", "actual_length","start_frame",
+                        "number_of_packets_stream_id", "error_count",
+                        "signr", "usercontext");
+            }
+
+            @Override
+            public int fieldOffset(String field) {
+                return super.fieldOffset(field);
+            }
+        }
+
+        public static final class usbdevfs_iso_packet_desc extends Structure {
+            public int length;
+            public int actual_length;
+            public int status;
+
+            @Override
+            protected List<String> getFieldOrder() {
+                return Arrays.asList("length", "actual_length", "status");
+            }
+
+            @Override
+            public int fieldOffset(String field) {
+                return super.fieldOffset(field);
+            }
+        }
+
         /**
          * Base size of native URB (without iso_frame_desc) in bytes
          */
-        public static final int urbBaseSize = 44;
+        public static final int urbBaseSize;
 
         /**
          * Size of struct usbdevfs_iso_packet_desc
          */
-        private static final int packetDescSize = 12;
+        private static final int packetDescSize;
+
+        public static final int usbdevfs_urb_type;
+        public static final int usbdevfs_urb_endpoint;
+        public static final int usbdevfs_urb_status;
+        public static final int usbdevfs_urb_flags;
+        public static final int usbdevfs_urb_buffer;
+        public static final int usbdevfs_urb_buffer_length;
+        public static final int usbdevfs_urb_actual_length;
+        public static final int usbdevfs_urb_start_frame;
+        public static final int usbdevfs_urb_number_of_packets_stream_id;
+        public static final int usbdevfs_urb_error_count;
+        public static final int usbdevfs_urb_signr;
+        public static final int usbdevfs_urb_usercontext;
+        public static final int usbdevfs_iso_packet_desc_length;
+        public static final int usbdevfs_iso_packet_desc_actual_length;
+        public static final int usbdevfs_iso_packet_desc_status;
+
+        static {
+            usbdevfs_urb urb = new Urb.usbdevfs_urb();
+            usbdevfs_iso_packet_desc desc = new Urb.usbdevfs_iso_packet_desc();
+            urbBaseSize = urb.size();
+            packetDescSize = desc.size();
+            usbdevfs_urb_type = urb.fieldOffset("type");
+            usbdevfs_urb_endpoint = urb.fieldOffset("endpoint");
+            usbdevfs_urb_status = urb.fieldOffset("status");
+            usbdevfs_urb_flags = urb.fieldOffset("flags");
+            usbdevfs_urb_buffer = urb.fieldOffset("buffer");
+            usbdevfs_urb_buffer_length = urb.fieldOffset("buffer_length");
+            usbdevfs_urb_actual_length = urb.fieldOffset("actual_length");
+            usbdevfs_urb_start_frame = urb.fieldOffset("start_frame");
+            usbdevfs_urb_number_of_packets_stream_id = urb.fieldOffset("number_of_packets_stream_id");
+            usbdevfs_urb_error_count = urb.fieldOffset("error_count");
+            usbdevfs_urb_signr = urb.fieldOffset("signr");
+            usbdevfs_urb_usercontext = urb.fieldOffset("usercontext");
+            usbdevfs_iso_packet_desc_length = desc.fieldOffset("length");
+            usbdevfs_iso_packet_desc_actual_length = desc.fieldOffset("actual_length");
+            usbdevfs_iso_packet_desc_status = desc.fieldOffset("status");
+        }
 
         private ByteBuffer urbBuf;
-        private long urbBufAddr;
+        private final Pointer urbBufPointer;
         private int maxPackets;
-        public Pointer p;
 
         public Urb(int maxPackets) {
             this.maxPackets = maxPackets;
             int urbSize = urbBaseSize + maxPackets * packetDescSize;
-            // System.out.println("urbSize = " +urbSize);    //   44 + 4*12 = 92
-            //urbBuf = ByteBuffer.allocateDirect(urbSize);
             urbBuf = ByteBuffer.allocateDirect(urbSize);
             urbBuf.order(ByteOrder.nativeOrder());
-            //a = Pointer.nativeValue(Native.getDirectBufferPointer(urbBuf));
-            //urbBufAddr = (int) Pointer.nativeValue(Native.getDirectBufferPointer(urbBuf));
-            urbBufAddr = Pointer.nativeValue(Native.getDirectBufferPointer(urbBuf));
-            //urbBufAddr = null;
-            p = Native.getDirectBufferPointer(urbBuf);
+            urbBufPointer = Native.getDirectBufferPointer(urbBuf);
         }
 
-        public static int getUserContext(Pointer urbBufPointer) {
-            return urbBufPointer.getInt(40);
+        public Urb(Pointer urbPointer) {
+            this.maxPackets = this.getNumberOfPackets();
+            int urbSize = urbBaseSize + maxPackets * packetDescSize;
+            this.urbBufPointer = urbPointer;
+            this.urbBuf = urbBufPointer.getByteBuffer(0, urbSize);
         }
 
-        public long getNativeUrbAddr() {
-            //System.out.println("urbBufAddr = " +urbBufAddr);
-            return urbBufAddr; 
-        }
-        
-        public Pointer getNativeUrbPointer() {
-            return p;
-        }
-        
-
-        public void setType(int type) {
-            urbBuf.put(0, (byte) type);
+        public Pointer getNativeUrbAddr() {
+            return urbBufPointer;
         }
 
-        public void setEndpoint(int endpoint) {
-            urbBuf.put(1, (byte) endpoint);
-          //  System.out.println("endpoint = " +endpoint);
+        public void setType(byte type) {
+            urbBuf.put(usbdevfs_urb_type, type);
+        }
+
+        public void setEndpoint(byte endpoint) {
+            urbBuf.put(usbdevfs_urb_endpoint,  endpoint);
         }
 
         public int getStatus() {
-            return urbBuf.getInt(4);
+            return urbBuf.getInt(usbdevfs_urb_status);
         }
 
         public void setStatus(int status) {
-            urbBuf.putInt(4, status);
-           // System.out.println("Bufferstatus = " +status);
+            urbBuf.putInt(usbdevfs_urb_status, status);
         }
 
         public void setFlags(int flags) {
-            urbBuf.putInt(8, flags);
+            urbBuf.putInt(usbdevfs_urb_flags, flags);
         }
 
         public void setBuffer(Pointer buffer) {
-            urbBuf.putInt(12, (int) Pointer.nativeValue(buffer));
-           // System.out.println("buffer = " +buffer);    // buffer = allocated@0x7f02280160a0 (12288 bytes)
+            if(Pointer.SIZE == 4) {
+                urbBuf.putInt(usbdevfs_urb_buffer, (int) Pointer.nativeValue(buffer));
+            } else if (Pointer.SIZE == 8) {
+                urbBuf.putLong(usbdevfs_urb_buffer, Pointer.nativeValue(buffer));
+            } else {
+                throw new IllegalStateException("Unhandled Pointer Size: " + Pointer.SIZE);
+            }
         }
 
         public void setBufferLength(int bufferLength) {
-            urbBuf.putInt(16, bufferLength);
-        //    System.out.println("Bufferlänge = " +bufferLength);   // 12288; // 4*3*1024 
+            urbBuf.putInt(usbdevfs_urb_buffer_length, bufferLength);
         }
 
         public void setActualLength(int actualLength) {
-            urbBuf.putInt(20, actualLength);
-        //    System.out.println("actualLength = " +actualLength);   // 0
+            urbBuf.putInt(usbdevfs_urb_actual_length, actualLength);
         }
 
         public void setStartFrame(int startFrame) {
-            urbBuf.putInt(24, startFrame);
-           // System.out.println("startFrame = " +startFrame);   // 0
+            urbBuf.putInt(usbdevfs_urb_start_frame, startFrame);
         }
 
         public int getNumberOfPackets() {
-            return urbBuf.getInt(28);
+            return urbBuf.getInt(usbdevfs_urb_number_of_packets_stream_id);
         }
 
         public void setNumberOfPackets(int numberOfPackets) {
             if (numberOfPackets < 0 || numberOfPackets > maxPackets) {
                 throw new IllegalArgumentException();
             }
-            urbBuf.putInt(28, numberOfPackets);
+            urbBuf.putInt(usbdevfs_urb_number_of_packets_stream_id, numberOfPackets);
         }
 
         public void setErrorCount(int errorCount) {
-            urbBuf.putInt(32, errorCount);
-            
+            urbBuf.putInt(usbdevfs_urb_error_count, errorCount);
         }
 
         /**
@@ -517,56 +587,63 @@ public class USBIso {
          * @param signr sigNr
          */
         public void setSigNr(int signr) {
-            urbBuf.putInt(36, signr);
+            urbBuf.putInt(usbdevfs_urb_signr, signr);
         }
 
         public int getUserContext() {
-            return urbBuf.getInt(40);
+            if(Pointer.SIZE == 4) {
+                return urbBuf.getInt(usbdevfs_urb_usercontext);
+            } else if (Pointer.SIZE == 8) {
+                return (int) urbBuf.getLong(usbdevfs_urb_usercontext);
+            } else {
+                throw new IllegalStateException("Unhandled Pointer Size: " + Pointer.SIZE);
+            }
         }
 
         public void setUserContext(int userContext) {
-            urbBuf.putInt(40, userContext);
-            //Benutzerkontext = userContext;
-            //System.out.println("userContext = " +userContext);
+            if(Pointer.SIZE == 4) {
+                urbBuf.putInt(usbdevfs_urb_usercontext, userContext);
+            } else if (Pointer.SIZE == 8) {
+                urbBuf.putLong(usbdevfs_urb_usercontext, userContext);
+            } else {
+                throw new IllegalStateException("Unhandled Pointer Size: " + Pointer.SIZE);
+            }
+            System.out.println("userContext = " +userContext);
         }
 
         public void setPacketLength(int packetNo, int length) {
             if (packetNo < 0 || packetNo >= maxPackets) {
                 throw new IllegalArgumentException();
             }
-            urbBuf.putInt(urbBaseSize + packetNo * packetDescSize, length);    // für packetNo = 0 == urbBaseSize = 44 packetDescSize = 12 packetNo = 0
-            
-            //System.out.println("urbBaseSize = " +urbBaseSize);
-            //System.out.println("packetDescSize = " +packetDescSize);
-            //System.out.println("packetNo = " +packetNo);
+            urbBuf.putInt(urbBaseSize + packetNo * packetDescSize + usbdevfs_iso_packet_desc_length, length);    // für packetNo = 0 == urbBaseSize = 44 packetDescSize = 12 packetNo = 0
         }
 
         public int getPacketLength(int packetNo) {
             if (packetNo < 0 || packetNo >= maxPackets) {
                 throw new IllegalArgumentException();
             }
-            return urbBuf.getInt(urbBaseSize + packetNo * packetDescSize);
+            return urbBuf.getInt(urbBaseSize + packetNo * packetDescSize + usbdevfs_iso_packet_desc_length);
         }
 
         public void setPacketActualLength(int packetNo, int actualLength) {
             if (packetNo < 0 || packetNo >= maxPackets) {
                 throw new IllegalArgumentException();
             }
-            urbBuf.putInt(urbBaseSize + packetNo * packetDescSize + 4, actualLength);
+            urbBuf.putInt(urbBaseSize + packetNo * packetDescSize + usbdevfs_iso_packet_desc_actual_length, actualLength);
         }
 
         public int getPacketActualLength(int packetNo) {
             if (packetNo < 0 || packetNo >= maxPackets) {
                 throw new IllegalArgumentException();
             }
-            return urbBuf.getInt(urbBaseSize + packetNo * packetDescSize + 4);
+            return urbBuf.getInt(urbBaseSize + packetNo * packetDescSize + usbdevfs_iso_packet_desc_actual_length);
         }
 
         public void setPacketStatus(int packetNo, int status) {
             if (packetNo < 0 || packetNo >= maxPackets) {
                 throw new IllegalArgumentException();
             }
-            urbBuf.putInt(urbBaseSize + packetNo * packetDescSize + 8, status);
+            urbBuf.putInt(urbBaseSize + packetNo * packetDescSize + usbdevfs_iso_packet_desc_status, status);
         }
 
         public int getPacketStatus(int packetNo) {
@@ -574,12 +651,10 @@ public class USBIso {
             if (packetNo < 0 || packetNo >= maxPackets) {
                 throw new IllegalArgumentException();
             }
-            return urbBuf.getInt(urbBaseSize + packetNo * packetDescSize + 8);
+            return urbBuf.getInt(urbBaseSize + packetNo * packetDescSize + usbdevfs_iso_packet_desc_status);
             //System.out.println("Endpunktadresse vo");
         }
     }
-
-    
 
     /**
      * This class represents an isochronous data transfer request that can be queued with the USB device driver.
@@ -601,29 +676,22 @@ public class USBIso {
      *      Request.submit()</pre>
      */
     public class Request {
-        //long a = Urb.a;
         private boolean initialized;
         private boolean queued;
         private Urb urb;
-        public long urbAddr;
         private Memory buffer;
         private int endpointAddr;
-        int rc ;
-        public Pointer p;
 
         private Request() {
-            
-            //System.out.println("urbBufAddr in long = " + a);
-            
             urb = new Urb(maxPacketsPerRequest);
-            urbAddr = urb.getNativeUrbAddr();
-            p = urb.getNativeUrbPointer();
             int bufSize = maxPacketsPerRequest * maxPacketSize;
-            //System.out.println(" bufSize = " +bufSize);   //   bufSize = 12288
             buffer = new Memory(bufSize);
             urb.setUserContext(requests.size());
             requests.add(this);
-            
+        }
+
+        public Urb getUrb() {
+            return urb;
         }
 
         /**
@@ -634,7 +702,7 @@ public class USBIso {
          * @param endpointAddr The address of an isochronous USB endpoint.
          *                     For Android, this is the value returned by <code>UsbEndpoint.getAddress()</code>.
          */
-        public void initialize(int endpointAddr) {
+        public void initialize(byte endpointAddr) {
             if (queued) {
                 throw new IllegalStateException();
             }
@@ -668,12 +736,11 @@ public class USBIso {
             }
             initialized = false;
             //System.out.println("urbBufAddr in long = " + a);
-            //System.out.println("vor IOCTL Submit URBAdresse = " +urbAddr);
+            System.out.println("vor IOCTL Submit URBAdresse = " + urb.getNativeUrbAddr());
            // urbAddr = urb.getNativeUrbAddr();
-            System.out.println("vor Submit IOCTL Pointer = " +p);
-            
-            int rc = libc.ioctl(fileDescriptor, USBDEVFS_SUBMITURB, p); 
-       
+            //System.out.println("nach native get URBAdresse = " +urbAddr);
+            int rc = (Libc.INSTANCE).ioctl(fileDescriptor, USBDEVFS_SUBMITURB, urb.getNativeUrbAddr());
+
             //int rc = nativeIOCTLsenden(fileDescriptor, USBDEVFS_SUBMITURB);
             //System.out.println("nach URBAdresse = " +urbAddr);
            // System.out.println("URBAdresse");
@@ -690,7 +757,7 @@ public class USBIso {
         public void cancel() throws IOException {
             int rc;
             try {
-                rc = libc.ioctl(fileDescriptor, USBDEVFS_DISCARDURB, urbAddr);
+                rc = (Libc.INSTANCE).ioctl(fileDescriptor, USBDEVFS_DISCARDURB, urb.getNativeUrbAddr());
             } catch (LastErrorException e) {
                 if (e.getErrorCode() == EINVAL) {                 // This happens if the request has already completed.
                     return;
@@ -701,12 +768,12 @@ public class USBIso {
                 throw new IOException("ioctl(USBDEVFS_DISCARDURB) failed, rc=" + rc);
             }
         }
-        
+
         /**
          * Returns the Status of this request.
          */
-        
-      
+
+
         public int getUrbStaus() {
             return urb.getStatus();
         }
@@ -721,8 +788,6 @@ public class USBIso {
         /**
          * Returns the packet count of this request.
          */
-        
-      
         public int getPacketCount() {
             return urb.getNumberOfPackets();
         }
@@ -785,121 +850,5 @@ public class USBIso {
             buffer.read(packetNo * maxPacketSize, buf, 0, len);
         }
     }
-    
-    public void submitUrbNative() {
-        int rc = nativeIOCTLsenden(fileDescriptor, USBDEVFS_SUBMITURB);
-        
-    }
-    
-    public static class Usbdevfs_iso_packet_desc extends Structure {
-	public int length;
-	public int actual_length;
-	public int status;
-        
-        @Override
-        protected List getFieldOrder() {
-            return Arrays.asList(
-                    "length",
-                    "actual_length",
-                    "status");
-        }
-    }
-    
-    public class Usbdevfs_urb extends Structure {
-	public char type;
-	public char endpoint;
-	public int status;
-	public int flags;
-	public Pointer puffer;
-	public int buffer_length;
-	public int actual_length;
-	public int start_frame;
-        public int number_of_packets;	/* Only used for isoc urbs */
-	public int error_count;
-	public int signr;	/* signal to be sent on completion, or 0 if none should be sent. */
-	public Pointer usercontext;
-        public Usbdevfs_iso_packet_desc usbdevfs_iso_packet_desc;
-        //public Usbdevfs_iso_packet_desc[] usbdevfs_iso_packet_desc = new Usbdevfs_iso_packet_desc[8];
-        //Usbdevfs_iso_packet_desc usbdevfs_iso_packet_desc = new Usbdevfs_iso_packet_desc();
-        //Structure[] structs = usbdevfs_iso_packet_desc.toArray(8);
-        //Usbdevfs_iso_packet_desc[] usbdevfs_iso_packet_desc = (Usbdevfs_iso_packet_desc[])usbdevfs_iso_packet_desc.toArray(8);
-	//struct usbdevfs_iso_packet_desc iso_frame_desc[0];
-     
-        
-        @Override
-        protected List getFieldOrder() {
-            return Arrays.asList(
-                    "type",
-                    "endpoint",
-                    "status",
-                    "flags",
-                    "puffer",
-                    "buffer_length",
-                    "actual_length",
-                    "start_frame",
-                    "number_of_packets",
-                    "error_count",
-                    "signr",
-                    "usercontext",
-                    "usbdevfs_iso_packet_desc");
-        }
-        
-    }
-    
-    public void submitUsbdevfs_urb(int anzPakete, int benutzerkontext) throws LastErrorException {
-        
-        Pointer zeiger = new Memory (8);
-        zeiger.setInt(0, 0);
-        System.out.println("vor Usbdevfs_urb");
-        Usbdevfs_urb p = new Usbdevfs_urb();
-        System.out.println("nach Usbdevfs_urb");
-        p.type = USBDEVFS_URB_TYPE_ISO;
-        p.endpoint = 0x81;
-        p.status = -1;
-        p.flags = USBDEVFS_URB_ISO_ASAP;
-        p.puffer = buffer;
-        p.buffer_length = 3072;
-        p.actual_length = 0;
-        p.start_frame = 0;
-        p.number_of_packets = 1;
-        p.error_count = 0;
-        p.usercontext = zeiger;
-        System.out.println("vor for (int packetNo = 0;");
-        /*for (int packetNo = 0; packetNo < maxPacketsPerRequest; packetNo++) {
-            //p.usbdevfs_iso_packet_desc.actual_length;
-            p.usbdevfs_iso_packet_desc[packetNo].actual_length = 0;
-            p.usbdevfs_iso_packet_desc[packetNo].length = maxPacketSize;
-            p.usbdevfs_iso_packet_desc[packetNo].status = -1;
-        }*/
-        p.usbdevfs_iso_packet_desc.actual_length = 0;
-        p.usbdevfs_iso_packet_desc.length = maxPacketSize;
-                p.usbdevfs_iso_packet_desc.status = -1;
-        p.write();
-        
-        System.out.println("vor Submit IOCTL Pointer = " +p.getPointer());
-                
-        int rc = libc.ioctl(fileDescriptor, USBDEVFS_SUBMITURB, p.getPointer());
-        if (rc != 0) {
-            throw new LastErrorException("ioctl(USBDEVFS_SUBMITURB) failed, rc=" + rc + ".");
-        }
-        
-        System.out.println("nach Submit IOCTL Pointer = " +p.getPointer());
-        
-        
-        rc = libc.ioctl(fileDescriptor, USBDEVFS_REAPURB, p.getPointer());
-        if (rc != 0) {
-            throw new LastErrorException("ioctl(USBDEVFS_REAPURB) failed, rc=" + rc + ".");
-        }
-        
-        System.out.println("nach USBDEVFS_REAPURB IOCTL Pointer = " +p.getPointer());
-           
-        
-        
-            
-    }
-
-    
-    
-    
 
 }

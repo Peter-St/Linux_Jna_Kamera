@@ -1,26 +1,18 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
+
 package humer.kamera;
 
-//import humer.peter.Kamera;
-import humer.kamera.USBIso;
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-
-
 /*
 Kamera mit folgendem Befehl im Terminal auslesen:
 lsusb -v -d 05c8:0233
 
 Folgende Variablen müssen gesetzt werden:
-
 
 In C:
 
@@ -40,19 +32,11 @@ maxPacketSize
 #define  ANZAHL_URBS 16
 
 
-
-
 */
-
-
-
-
-
 public class Kam extends javax.swing.JFrame {
-    
-    //private int busnummer = 1;
-    //private int devicenummer = 3;
-    
+    private static final int BUS = 1;
+    private static final int DEVICE = 5;
+    private static final int ALT_SETTING = 6; // 7 = 3*1024 bytes packet size // 6 = 3*896 // 5 = 2*1024 // 4 = 2*768 // 3 = 1x 1024 // 2 = 1x 512 // 1 = 128 //
     private boolean               backgroundJobActive;
     private int					  camStreamingAltSetting;
                     
@@ -71,13 +55,12 @@ public class Kam extends javax.swing.JFrame {
     public int dateiHandlung;
     int maxVideoFrameGroesse;
     
-    
     public native void usbIsoLinux();
     public native void kameraSchliessen();
     
     static {  
         System.out.println("Bibliothek wird geladen");
-        System.load("/home/peter/NetBeansProjects/Kam_c/dist/Kam.so");
+        System.load(new File("../Kam_c/dist/Kam.so").getAbsolutePath());
     }
 
     /**
@@ -153,8 +136,8 @@ public class Kam extends javax.swing.JFrame {
             return;
         }
         System.out.println("OK");
-    }//GEN-LAST:event_KameraActionPerformed
-    //GEN-LAST:event_KameraActionPerformed
+    }                                      
+//GEN-LAST:event_KameraActionPerformed
     /**
      * @param args the command line arguments
      */
@@ -204,7 +187,7 @@ private void startBackgroundJob (final Callable callable) throws Exception {
                 try {
                     callable.call(); }
                 catch (Throwable e) {
-                	System.out.println(e); }
+                	e.printStackTrace();}
                 finally {
                     backgroundJobActive = false; }}};
         thread.setPriority(Thread.MAX_PRIORITY);
@@ -232,7 +215,7 @@ private void startBackgroundJob (final Callable callable) throws Exception {
             //EndpunktAdresse = (int) 129;
             //System.out.println("Endpunktadresse vor = " +String.format("0x%02X", (int)EndpunktAdresse));
             //System.out.println("Endpunktadresse in int = " + EndpunktAdresse2);
-            req.initialize(0x81);
+            req.initialize((byte) 0x81);
             req.submit();
             
             //System.out.println("Endpunktadresse nach submit urb = " +String.format("0x%02X", (int)EndpunktAdresse));
@@ -339,7 +322,7 @@ private void testIsochronousRead1() {
                     //enableStreaming(true);
                     submitActiveUrbs();
                 } catch (IOException ex) {
-                    Logger.getLogger(Kamera.class.getName()).log(Level.SEVERE, null, ex);
+                    Logger.getLogger(Kam.class.getName()).log(Level.SEVERE, null, ex);
                 }
         while (System.currentTimeMillis() - time0 < 10000) {
         for (int i=0; i<activeUrbs; i++) { 
@@ -423,10 +406,10 @@ private void testIsochronousRead1() {
                 }
                 //int i = 0 ;
                 requestCnt++;
-                req.initialize(0x81);
+                req.initialize((byte) 0x81);
                 req.submit();
             } catch (IOException ex) {
-                Logger.getLogger(Kamera.class.getName()).log(Level.SEVERE, null, ex);
+                Logger.getLogger(Kam.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
         }

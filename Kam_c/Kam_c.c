@@ -14,21 +14,12 @@
 #include <fcntl.h>
 #include <string.h>
 #include <unistd.h>
-#include <usb.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <math.h>
 
 
-
-
-///////// Kamera Vendor und Product ID /////////////
-
-int VENDOR_ID   = 0x05c8;
-int PRODUCT_ID  = 0x0233;
-char bus[] = "1";
-char device[] = "3";
 ////////  Kamera Variablen ////////////////////
     
     int camStreamingInterfaceNum = 1;
@@ -41,7 +32,6 @@ char device[] = "3";
     int camFrameInterval = 666666;                 // 333333 YUV = 30 fps // 666666 YUV = 15 fps
     uint8_t bConfigurationValue = 1;
     
-    int camStreamingAltSetting = 7;              // 7 = 3*1024 bytes packet size // 6 = 3*896 // 5 = 2*1024 // 4 = 2*768 // 3 = 1x 1024 // 2 = 1x 512 // 1 = 128 // 
 #define maxPacketSize 3072
     int packetsPerRequest =  8;
 #define  ANZAHL_URBS 16
@@ -100,15 +90,15 @@ jmethodID javaVideoParameter;
     jmethodID javaReapreset;
     jmethodID javaUsbJniReapStream;
     jmethodID javaDateiHandlungSetzen;
+    jfieldID java_BUS;
+    jfieldID java_DEVICE;
+    jfieldID java_ALT_SETTING;
     jclass class;
     JNIEnv *envg;
     jobject objg;
 
     struct usbdevfs_ctrltransfer ctrl;
     
-char *busnummer;
-char *geraetenummer;
-
 int camStreamingInterfaceNum, camControlInterfaceNum, endpunktadresse, ausgewaehlteKamera;
 
 int fd, i, j, result = -1;
@@ -118,31 +108,24 @@ int usedStreamingParmsLen;
 
 JNIEXPORT void JNICALL Java_humer_kamera_Kam_usbIsoLinux
   (JNIEnv *env, jobject obj) {
+    class = (*env)->GetObjectClass(env, obj);
     
     int r, i, ret;
     
     // Erstellen der Geräteaddresse
     
-    busnummer = &bus;
-    geraetenummer = &device;
-    char *adresse;
-    adresse = malloc(24);
-    strcpy(adresse, "/dev/bus/usb/00");
-    char *adresse2;
-    adresse2 = malloc(4);
-    strcpy(adresse2, "/00");
-    strcat(adresse, busnummer);
-    strcat(adresse, adresse2);
-    strcat(adresse, geraetenummer);
+    java_BUS = (*env)->GetStaticFieldID(env, class, "BUS", "I");
+    java_DEVICE = (*env)->GetStaticFieldID(env, class, "DEVICE", "I");
+    java_ALT_SETTING = (*env)->GetStaticFieldID(env, class, "ALT_SETTING", "I");
+    
+    char *adresse = malloc(24);
+    sprintf(adresse, "/dev/bus/usb/%03d/%03d", 
+            (*env)->GetStaticIntField(env, class, java_BUS),
+            (*env)->GetStaticIntField(env, class, java_DEVICE));
     printf("Die Kameraadresse lautet: %s\n", adresse); 
     
-    //fd =  open(adresse , O_RDWR, 0666);
     fd =  open(adresse , O_RDWR);
-    
     free(adresse);
-    //free(busnummer);
-    free(adresse2);
-    //free(geraetenummer);
         
     printf("\nDateibeschreiber nativ ermittelt.\nEr hat folgenden Wert = %d\n", fd);
     fflush(stdout);
@@ -170,7 +153,7 @@ JNIEXPORT void JNICALL Java_humer_kamera_Kam_usbIsoLinux
     fflush(stdout);
      printf("vor den Klassen\n"); 
     fflush(stdout);
-    class = (*env)->GetObjectClass(env, obj);
+    
     javaEinstellungDerKamera = (*env)->GetMethodID(env, class, "einstellungDerKamera", "(IIIIIIII)V");
     javaVideoParameter = (*env)->GetMethodID(env, class, "videoParameter", "([B)V");
     javaDateiHandlungSetzen = (*env)->GetMethodID(env, class, "dateiHandlungSetzen", "(I)V");
@@ -182,13 +165,13 @@ JNIEXPORT void JNICALL Java_humer_kamera_Kam_usbIsoLinux
     
     ioctlControltransfer(env ,obj, javaVideoParameter);
     
-    interfaceSetztenGeraetetreiber(camStreamingInterfaceNum, camStreamingAltSetting);
+    interfaceSetztenGeraetetreiber(camStreamingInterfaceNum, (*env)->GetStaticIntField(env, class, java_ALT_SETTING));
     
     
     switch(camFrameIndex) {
-            case 1: (*env)->CallVoidMethod(env, obj, javaEinstellungDerKamera, camStreamingAltSetting, (jint *)  maxPacketSize, (jint *)packetsPerRequest,
+            case 1: (*env)->CallVoidMethod(env, obj, javaEinstellungDerKamera, (*env)->GetStaticIntField(env, class, java_ALT_SETTING), (jint *)  maxPacketSize, (jint *)packetsPerRequest,
                (jint *) ANZAHL_URBS, (jint *) camFormatIndex, (jint *) camFrameIndex, 640, 360); break;
-            case 5: (*env)->CallVoidMethod(env, obj, javaEinstellungDerKamera, camStreamingAltSetting, (jint *)  maxPacketSize, (jint *)packetsPerRequest,
+            case 5: (*env)->CallVoidMethod(env, obj, javaEinstellungDerKamera, (*env)->GetStaticIntField(env, class, java_ALT_SETTING), (jint *)  maxPacketSize, (jint *)packetsPerRequest,
                (jint *) ANZAHL_URBS, (jint *) camFormatIndex, (jint *) camFrameIndex, 640, 480); break;
             //case 6: cv::imencode(".jpg", rgbBild, videoframeRGB, param); break;
     }
@@ -239,8 +222,8 @@ void interfaceSetztenGeraetetreiber (int interface, int altsetting){
     setif.altsetting = altsetting;
     setif.interface = interface;
     int ret = ioctl(fd, USBDEVFS_SETINTERFACE, &setif);
-    if (ret == 0)  printf("Interface %d erfolgreich auf das Altsetting %d gesetzt. Die Rückmeldung lautet: %d.\n", camStreamingInterfaceNum, setif.altsetting,ret );
-    else  printf(" WARNUNG: Interface Alteinstellungen nicht gesetzt. Rückmeldung: %d, Fehlermeldung: %d\n", ret, errno);
+    if (ret == 0)  printf("Interface %d / %d erfolgreich auf das Altsetting %d gesetzt. Die Rückmeldung lautet: %d.\n", camStreamingInterfaceNum, setif.interface, setif.altsetting,ret );
+    else  printf(" WARNUNG: Interface %d / %d Alteinstellungen nicht gesetzt %d. Rückmeldung: %d, Fehlermeldung: %d\n", camStreamingInterfaceNum, setif.interface, setif.altsetting, ret, errno);
     fflush(stdout);
 }
 
