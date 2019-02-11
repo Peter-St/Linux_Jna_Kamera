@@ -197,7 +197,7 @@ private void startBackgroundJob (final Callable callable) throws Exception {
                 try {
                     callable.call(); }
                 catch (Throwable e) {
-                	System.out.println(e); }
+                	e.printStackTrace();}
                 finally {
                     backgroundJobActive = false; }}};
         thread.setPriority(Thread.MAX_PRIORITY);
@@ -225,7 +225,7 @@ private void startBackgroundJob (final Callable callable) throws Exception {
             //EndpunktAdresse = (int) 129;
             //System.out.println("Endpunktadresse vor = " +String.format("0x%02X", (int)EndpunktAdresse));
             //System.out.println("Endpunktadresse in int = " + EndpunktAdresse2);
-            req.initialize(0x81);
+            req.initialize((byte) 0x81);
             req.submit();
             
             //System.out.println("Endpunktadresse nach submit urb = " +String.format("0x%02X", (int)EndpunktAdresse));
@@ -416,7 +416,7 @@ private void testIsochronousRead1() {
                 }
                 //int i = 0 ;
                 requestCnt++;
-                req.initialize(0x81);
+                req.initialize((byte) 0x81);
                 req.submit();
             } catch (IOException ex) {
                 Logger.getLogger(Kam.class.getName()).log(Level.SEVERE, null, ex);
