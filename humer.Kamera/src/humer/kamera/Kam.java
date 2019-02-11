@@ -1,19 +1,12 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
+
 package humer.kamera;
 
-//import humer.peter.Kamera;
-import humer.kamera.USBIso;
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-
 
 /*
 Kamera mit folgendem Befehl im Terminal auslesen:
@@ -77,7 +70,7 @@ public class Kam extends javax.swing.JFrame {
     
     static {  
         System.out.println("Bibliothek wird geladen");
-        System.load("/home/peter/NetBeansProjects/Kam_c/dist/Kam.so");
+        System.load(new File("../Kam_c/dist/Kam.so").getAbsolutePath());
     }
 
     /**
@@ -153,8 +146,8 @@ public class Kam extends javax.swing.JFrame {
             return;
         }
         System.out.println("OK");
-    }//GEN-LAST:event_KameraActionPerformed
-    //GEN-LAST:event_KameraActionPerformed
+    }                                      
+//GEN-LAST:event_KameraActionPerformed
     /**
      * @param args the command line arguments
      */
@@ -339,7 +332,7 @@ private void testIsochronousRead1() {
                     //enableStreaming(true);
                     submitActiveUrbs();
                 } catch (IOException ex) {
-                    Logger.getLogger(Kamera.class.getName()).log(Level.SEVERE, null, ex);
+                    Logger.getLogger(Kam.class.getName()).log(Level.SEVERE, null, ex);
                 }
         while (System.currentTimeMillis() - time0 < 10000) {
         for (int i=0; i<activeUrbs; i++) { 
@@ -426,7 +419,7 @@ private void testIsochronousRead1() {
                 req.initialize(0x81);
                 req.submit();
             } catch (IOException ex) {
-                Logger.getLogger(Kamera.class.getName()).log(Level.SEVERE, null, ex);
+                Logger.getLogger(Kam.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
         }
