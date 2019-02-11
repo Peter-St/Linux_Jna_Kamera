@@ -14,7 +14,6 @@ lsusb -v -d 05c8:0233
 
 Folgende Variablen müssen gesetzt werden:
 
-
 In C:
 
 camStreamingInterfaceNum                 // normalerweise 1;
@@ -33,19 +32,11 @@ maxPacketSize
 #define  ANZAHL_URBS 16
 
 
-
-
 */
-
-
-
-
-
 public class Kam extends javax.swing.JFrame {
-    
-    //private int busnummer = 1;
-    //private int devicenummer = 3;
-    
+    private static final int BUS = 1;
+    private static final int DEVICE = 5;
+    private static final int ALT_SETTING = 6; // 7 = 3*1024 bytes packet size // 6 = 3*896 // 5 = 2*1024 // 4 = 2*768 // 3 = 1x 1024 // 2 = 1x 512 // 1 = 128 //
     private boolean               backgroundJobActive;
     private int					  camStreamingAltSetting;
                     
@@ -63,7 +54,6 @@ public class Kam extends javax.swing.JFrame {
     private boolean               camIsOpen;
     public int dateiHandlung;
     int maxVideoFrameGroesse;
-    
     
     public native void usbIsoLinux();
     public native void kameraSchliessen();
