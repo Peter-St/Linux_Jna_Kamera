@@ -96,21 +96,9 @@ public class USBIso {
     //--- Main logic ---------------------------------------------------------------
     private int fileDescriptor;
     private ArrayList<Request> requests = new ArrayList<>();
-    private int maxPacketsPerRequest;
+    private static int maxPacketsPerRequest;
     private int maxPacketSize;
-    Logger logger;
-    
-    
-    public static int Benutzerkontext;
-
-    
-    // private native void nativePrint();
-    // public native void nativePrint();
-    public native int nativeIOCTLsenden(int dateiHandlung, int USBDEVFS_REAPURBNDELAY);
-    public native int nativPaketStatus();
-    public static native int fd();
         
-    public Memory benutzerkontext = new Memory (1);
     
 
     
@@ -258,27 +246,12 @@ public class USBIso {
         int func = wait ? USBDEVFS_REAPURB : USBDEVFS_REAPURBNDELAY;
         int rc;
       
-        try {
-            System.out.println("vor Reaprequest func = " + func +". Der Pointer hat folgenden Wert: " + Pointer.nativeValue(urbPointer.getValue()));
-            System.out.println("vor Reaprequest fileDescriptor = " + fileDescriptor );
-          //  func = USBDEVFS_REAPURBNDELAY;
+        rc = Libc.INSTANCE.ioctl(fileDescriptor, func, urbPointer);
           
-              rc = Libc.INSTANCE.ioctl(fileDescriptor, func, urbPointer);
-          
-        } catch (LastErrorException e) {
-            // logger.log(Level.SEVERE, null, e);
-            System.out.println("ReapRequest fehlgeschlagen " +e);
-            if (e.getErrorCode() == EAGAIN && !wait) {
-                return null;
-            }
-            throw e;
-        }
-  
-        System.out.println("nach Reaprequest func = " +func);
         if (rc != 0) {
-            //throw new IOException("ioctl(USBDEVFS_REAPURB*) failed, rc=" + rc + ".");
+            throw new IOException("ioctl(USBDEVFS_REAPURB*) failed, rc=" + rc + ".");
         }
-
+        
         Urb urb = new Urb(urbPointer.getValue());
         int urbNdx = urb.getUserContext();
         if (urbNdx < 0 || urbNdx >= requests.size()) {
@@ -286,98 +259,17 @@ public class USBIso {
         }
         Request req = requests.get(urbNdx);
         if (! req.getUrb().getNativeUrbAddr().equals(urbPointer.getValue())) {
-           // throw new IOException("Address of URB returned by ioctl(USBDEVFS_REAPURB*) does not match.");
-        }
-        if (!req.queued) {
-           // throw new IOException("URB returned by ioctl(USBDEVFS_REAPURB*) was not queued.");
-        }
-        req.queued = false;
-        req.initialized = false;
-        return req;
-    }
-    
-    
-    
-    
-    
-    public Request reapRequest1(boolean wait, int anzahl) throws IOException {
-
-        Request req = requests.get(anzahl);
-        Pointer p = req.getUrb().getNativeUrbAddr();
-        System.out.println("Vor reapRequest1: p = " + p);
-//        long urbAddr = req.urbAddr;
-
-        //Pointer p = urb.getNativeUrbPointer();
-        //System.out.println("Vor reapRequest1: Pointer = " + p);
-        //int bufSize = maxPacketsPerRequest * maxPacketSize;
-        //System.out.println(" bufSize = " +bufSize);   //   bufSize = 12288
-        //buffer = new Memory(bufSize);
-
-        PointerByReference urbPointer = new PointerByReference(p);
-
-        int func = wait ? USBDEVFS_REAPURB : USBDEVFS_REAPURBNDELAY;
-        int rc;
-
-        try {
-            System.out.println("vor Reaprequest func = " + func +". Der Pointer hat folgenden Wert: " + Pointer.nativeValue(urbPointer.getValue()));
-            //System.out.println("vor Reaprequest fileDescriptor = " + fileDescriptor );
-            //  func = USBDEVFS_REAPURB;
-            //System.out.println("vor Reap IOCTL URBAdresse = " +urbAddr);
-
-            rc = Libc.INSTANCE.ioctl(fileDescriptor, func, urbPointer);
-
-        } catch (LastErrorException e) {
-            // logger.log(Level.SEVERE, null, e);
-            System.out.println("ReapRequest fehlgeschlagen " +e);
-            if (e.getErrorCode() == EAGAIN && !wait) {
-                return null;
-            }
-            throw e;
-
-        }
-
-        if (rc == -1) {
-            System.out.println("Urbstatus:  " + req.getUrb().getStatus());
-            System.out.println("Paketstatus vom Paket 0:  " + req.getPacketStatus(0));
-
-            req.queued = false;
-            req.initialized = false;
-            return req;
-
-        } else {
-
-        System.out.println("nach Reaprequest func = " +func);
-        if (rc != 0) {
-            //throw new IOException("ioctl(USBDEVFS_REAPURB*) failed, rc=" + rc + ".");
-        }
-
-        //int urbNdx = Urb.getUserContext(urbPointer.getValue());
-        /*
-        int urbNdx = 1;
-        if (urbNdx < 0 || urbNdx >= requests.size()) {
-            throw new IOException("URB.userContext returned by ioctl(USBDEVFS_REAPURB*) is out of range.");
-        }
-        //Request req = requests.get(urbNdx);
-        /*
-        if (req.urbAddr != Pointer.nativeValue(urbPointer.getValue())) {
             throw new IOException("Address of URB returned by ioctl(USBDEVFS_REAPURB*) does not match.");
         }
-
-        if (req.urbAddr != 1) {
-            throw new IOException("Address of URB returned by ioctl(USBDEVFS_REAPURB*) does not match.");
-        }
-        */
         if (!req.queued) {
             throw new IOException("URB returned by ioctl(USBDEVFS_REAPURB*) was not queued.");
         }
         req.queued = false;
         req.initialized = false;
         return req;
-        }
-
     }
     
-
+    
     @SuppressWarnings("StatementWithEmptyBody")
     private void discardAllPendingRequests() throws IOException {
         // bypass if we have never allocated any request
@@ -514,8 +406,8 @@ public class USBIso {
         }
 
         public Urb(Pointer urbPointer) {
-            this.maxPackets = this.getNumberOfPackets();
-            int urbSize = urbBaseSize + maxPackets * packetDescSize;
+            //this.maxPackets = this.getNumberOfPackets();
+            int urbSize = urbBaseSize + maxPacketsPerRequest * packetDescSize;
             this.urbBufPointer = urbPointer;
             this.urbBuf = urbBufPointer.getByteBuffer(0, urbSize);
         }
@@ -608,7 +500,6 @@ public class USBIso {
             } else {
                 throw new IllegalStateException("Unhandled Pointer Size: " + Pointer.SIZE);
             }
-            System.out.println("userContext = " +userContext);
         }
 
         public void setPacketLength(int packetNo, int length) {
@@ -736,7 +627,7 @@ public class USBIso {
             }
             initialized = false;
             //System.out.println("urbBufAddr in long = " + a);
-            System.out.println("vor IOCTL Submit URBAdresse = " + urb.getNativeUrbAddr());
+            // System.out.println("vor IOCTL Submit URBAdresse = " + urb.getNativeUrbAddr());
            // urbAddr = urb.getNativeUrbAddr();
             //System.out.println("nach native get URBAdresse = " +urbAddr);
             int rc = (Libc.INSTANCE).ioctl(fileDescriptor, USBDEVFS_SUBMITURB, urb.getNativeUrbAddr());
