@@ -22,6 +22,7 @@ import com.sun.jna.ptr.PointerByReference;
 import static humer.kamera.Ioctl._IO;
 import static humer.kamera.Ioctl._IOR;
 import static humer.kamera.Ioctl._IOW;
+import static humer.kamera.Ioctl._IOWR;
 import humer.kamera.USBIso.Request;
 
 import java.io.IOException;
@@ -30,7 +31,6 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.logging.Logger;
 
 /**
  * An USB isochronous transfer controller.
@@ -78,6 +78,8 @@ public class USBIso {
     private static final byte USBDEVFS_URB_TYPE_ISO = 0;
     private static final int USBDEVFS_URB_ISO_ASAP = 2;
 
+    public static final int USBDEVFS_MAXDRIVERNAME = 255;
+
     // IOCTL function codes:
     public static final int USBDEVFS_SETINTERFACE = _IOR('U', 4, new Usbdevfs_setinterface().size());
     public static final int USBDEVFS_SUBMITURB = _IOR('U', 10, new USBIso.Urb.usbdevfs_urb().size());
@@ -85,6 +87,13 @@ public class USBIso {
     public static final int USBDEVFS_REAPURB = _IOW('U', 12, Pointer.SIZE);
     public static final int USBDEVFS_REAPURBNDELAY = _IOW('U', 13, Pointer.SIZE);
     public static final int USBDEVFS_CLEAR_HALT = _IOR('U', 21, 4);
+    public static final int USBDEVFS_RELEASEINTERFACE = _IOR('U', 16, 4);
+    public static final int USBDEVFS_GETDRIVER = _IOW('U', 8, new usbdevfs_getdriver().size());
+    public static final int USBDEVFS_IOCTL = _IOWR('U', 18, new usbdevfs_ioctl().size());
+    public static final int USBDEVFS_DISCONNECT = _IO('U', 22);
+    public static final int USBDEVFS_CONNECT = _IO('U', 23);
+    public static final int USBDEVFS_CLAIMINTERFACE = _IOR('U', 15, 4);
+    public static final int USBDEVFS_CONTROL = _IOWR('U', 0, new usbdevfs_ctrltransfer().size());
 
     //--- Native data structures ---------------------------------------------------
     private static final int EAGAIN = 11;
@@ -98,8 +107,38 @@ public class USBIso {
     private ArrayList<Request> requests = new ArrayList<>();
     private static int maxPacketsPerRequest;
     private int maxPacketSize;
-        
-    
+
+    // Request types (bmRequestType):
+    public static final int RT_STANDARD_INTERFACE_SET = 0x01;
+    public static final int RT_CLASS_INTERFACE_SET = 0x21;
+    public static final int RT_CLASS_INTERFACE_GET = 0xA1;
+    // Video interface subclass codes:
+    public static final int SC_VIDEOCONTROL = 0x01;
+    public static final int SC_VIDEOSTREAMING = 0x02;
+    public static final int CLASS_VIDEO  = 0x14;
+    // Standard request codes:
+    public static final int SET_INTERFACE = 0x0b;
+    // Video class-specific request codes:
+    public static final int SET_CUR = 0x01;
+    public static final int GET_CUR = 0x81;
+    // VideoControl interface control selectors (CS):
+    public static final int VC_REQUEST_ERROR_CODE_CONTROL = 0x02;
+    // VideoStreaming interface control selectors (CS):
+    public static final int VS_PROBE_CONTROL = 0x01;
+    public static final int VS_COMMIT_CONTROL = 0x02;
+    public static final int VS_STILL_PROBE_CONTROL = 0x03;
+    public static final int VS_STILL_COMMIT_CONTROL = 0x04;
+    public static final int VS_STREAM_ERROR_CODE_CONTROL = 0x06;
+    public static final int VS_STILL_IMAGE_TRIGGER_CONTROL = 0x05;
+
+    public static final int UVC_STREAM_EOH = (1 << 7);
+    public static final int UVC_STREAM_ERR = (1 << 6);
+    public static final int UVC_STREAM_STI = (1 << 5);
+    public static final int UVC_STREAM_RES = (1 << 4);
+    public static final int UVC_STREAM_SCR = (1 << 3);
+    public static final int UVC_STREAM_PTS = (1 << 2);
+    public static final int UVC_STREAM_EOF = (1 << 1);
+    public static final int UVC_STREAM_FID = (1 << 0);
 
     
     /**
@@ -187,11 +226,10 @@ public class USBIso {
         p.interfaceId = interfaceId;
         p.altsetting = altSetting;
         p.write();
-        int rc = Libc.INSTANCE.ioctl(fileDescriptor, USBDEVFS_SETINTERFACE, p.getPointer());
-        if (rc != 0) {
-            throw new IOException("ioctl(USBDEVFS_SETINTERFACE) failed, rc=" + rc + ".");
-        }
+        Libc.INSTANCE.ioctl(fileDescriptor, USBDEVFS_SETINTERFACE, p.getPointer());
     }
+
+    
     
     /**
      * Modeled after struct usbdevfs_setinterface in <linuxKernel>/include/uapi/linux/usbdevice_fs.h.
@@ -742,4 +780,40 @@ public class USBIso {
         }
     }
 
+    public static class usbdevfs_getdriver extends Structure {
+        public int ifno;
+        public byte[] driver = new byte[USBDEVFS_MAXDRIVERNAME + 1];
+
+        @Override
+        protected List<String> getFieldOrder() {
+            return Arrays.asList("ifno", "driver");
+        }
+    }
+
+    public static class usbdevfs_ioctl extends Structure {
+        public int ifno;
+        public int ioctl_code;
+        public Pointer data;
+
+        @Override
+        protected List<String> getFieldOrder() {
+            return Arrays.asList("ifno", "ioctl_code", "data");
+        }
+    }
+
+    public static class usbdevfs_ctrltransfer extends Structure {
+        public byte bRequestType;
+        public byte bRequest;
+        public short wValue;
+        public short wIndex;
+        public short wLength;
+        public int timeout; /* in ms */
+        public Pointer data;
+
+        @Override
+        protected List<String> getFieldOrder() {
+            return Arrays.asList("bRequestType", "bRequest", "wValue", "wIndex", "wLength", "timeout", "data");
+        }
+
+    }
 }
