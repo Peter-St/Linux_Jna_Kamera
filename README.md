@@ -38,10 +38,13 @@ Set the camera specifications: (Set different values for you camera device in th
     
 
   private int                   camFormatIndex
+  
   private int                   camFrameIndex
     
   imageWidth
+  
   imageHeight
+  
   camFrameInterval
     
   --> here you set the Frame Format, The Frame Resolution and the Intervall of the frames, which you receive from the camera.
