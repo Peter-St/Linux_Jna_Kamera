@@ -6,7 +6,7 @@ Still Under Development !
 Explaination:
 
 1) Read out the camera specifications with the terminal command:
-  lsusb -v -d xxxx:xxxx
+ " lsusb -v -d xxxx:xxxx "
   xxxx:xxxx = ProductID : VendorID
 
 2) Set the camera specifications:
