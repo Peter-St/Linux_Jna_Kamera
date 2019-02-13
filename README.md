@@ -63,7 +63,7 @@ Take a look at the camera frames you receive with your settings. To know how big
   The first method: testIsochronousRead1 shows you how the frames is structered by the camera. Different camerasetting == Different Frame structers. Try it out with different setting and look at the output. The eof hint shows the framesize in the log. For valid camera settings the size should be the same as maxFrameSize value of the controlltransfer. You can use the serach function in the log ...
   
   So far ...
-  Some new features will be added soon
+  Some new features will be added soon (Videostream ... )
   
   
   Peter
