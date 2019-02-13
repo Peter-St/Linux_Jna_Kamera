@@ -31,19 +31,18 @@ Set the camera specifications: (Set different values for you camera device in th
   --> To set the packet size of the stream (to try out different settings)
   
   private static final int camStreamingInterfaceNum = 1;
-  
   private static final int camControlInterfaceNum = 0;
-  
   private static final int endpunktadresse = 0x81;
   
    --> Will be found automatically in near future
     
 
   private int                   camFormatIndex
-    private int                   camFrameIndex
-    imageWidth
-    imageHeight
-    private int                   camFrameInterval
+  private int                   camFrameIndex
+    
+  imageWidth
+  imageHeight
+  camFrameInterval
     
   --> here you set the Frame Format, The Frame Resolution and the Intervall of the frames, which you receive from the camera.
   
