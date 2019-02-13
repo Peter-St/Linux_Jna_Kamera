@@ -5,11 +5,19 @@ Still Under Development !
 
 Explaination:
 
-1) Read out the camera specifications with the terminal command:
+
+1) 
+
+
+Read out the camera specifications with the terminal command:
  " lsusb -v -d xxxx:xxxx "  -->
   xxxx:xxxx = ProductID : VendorID
 
-2) Set the camera specifications:
+
+2)
+
+
+Set the camera specifications:
 
   BUS = 1;
   DEVICE = 5;
@@ -40,7 +48,12 @@ Explaination:
   
   --> here you can set different setting for the camera stream: More Packets means bigger Usb Request Blocks. The activeUrbs are the number of Request blocks at same time.
 
-3) Take a look at the camera frames you receive with your settings. To know how big be a Frame should be, you can look at the output of the controlltransfer of the camera in the log: maxVideoFrameSize, This value is returned from the camera and should be the valid frame size (The value is calculated by " Imagewidth x Imagehight x 2 ").
+
+
+3)
+
+
+Take a look at the camera frames you receive with your settings. To know how big be a Frame should be, you can look at the output of the controlltransfer of the camera in the log: maxVideoFrameSize, This value is returned from the camera and should be the valid frame size (The value is calculated by " Imagewidth x Imagehight x 2 ").
   The first method: testIsochronousRead1 shows you how the frames is structered by the camera. Different camerasetting == Different Frame structers. Try it out with different setting and look at the output. The eof hint shows the framesize in the log. For valid camera settings the size should be the same as maxFrameSize value of the controlltransfer. You can use the serach function in the log ...
   
   So far ...
