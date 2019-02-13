@@ -25,6 +25,7 @@ Set the camera specifications: (Set different values for you camera device in th
   --> Bus & Vendor ID --> Will be set automatically to find the camera in near future
  
   ALT_SETTING;
+  
   maxPacketSize;
   
   --> To set the packet size of the stream (to try out different settings)
