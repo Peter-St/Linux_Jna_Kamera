@@ -1,69 +1,144 @@
 
 package humer.kamera;
 
-import java.io.File;
+import com.sun.jna.LastErrorException;
+import com.sun.jna.Memory;
+import com.sun.jna.Native;
+import com.sun.jna.ptr.IntByReference;
+import humer.kamera.USBIso.usbdevfs_ctrltransfer;
+import humer.kamera.USBIso.usbdevfs_getdriver;
+import humer.kamera.USBIso.usbdevfs_ioctl;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-/*
-Kamera mit folgendem Befehl im Terminal auslesen:
-lsusb -v -d 05c8:0233
-
-Folgende Variablen müssen gesetzt werden:
-
-
-In C:
-
-camStreamingInterfaceNum                 // normalerweise 1;
-camControlInterfaceNum                   //  normalerweise 0;
-endpunktadresse                   // 0x81
-
-camFormatIndex                        
-camFrameIndex                  
-camFrameInterval
-packetsPerRequest
-ANZAHL_URBS
-bConfigurationValue
-camStreamingAltSetting
-maxPacketSize
-    int packetsPerRequest =  8;
-#define  ANZAHL_URBS 16
-
-
-
-
-*/
 public class Kam extends javax.swing.JFrame {
     private static final int BUS = 1;
-    private static final int DEVICE = 3;
-    private static final int ALT_SETTING = 5; // 7 = 3*1024 bytes packet size // 6 = 3*896 // 5 = 2*1024 // 4 = 2*768 // 3 = 1x 1024 // 2 = 1x 512 // 1 = 128 //
+    private static final int DEVICE = 5;
+    private static final int ALT_SETTING = 6; // 7 = 3*1024 bytes packet size // 6 = 3*896 // 5 = 2*1024 // 4 = 2*768 // 3 = 1x 1024 // 2 = 1x 512 // 1 = 128 //
+    private static final int camStreamingInterfaceNum = 1;
+    private static final int camControlInterfaceNum = 0;
+    private static final int endpunktadresse = 0x81;
+    private static final String devicePath = String.format("/dev/bus/usb/%03d/%03d", BUS, DEVICE);
     private boolean               backgroundJobActive;
     private int					  camStreamingAltSetting;
                     
     private boolean               bulkMode;
-    private int                   camFormatIndex;   // MJPEG // YUV
-    private int                   camFrameIndex = 5; // Foxlink // bFrameIndex: 1 = 640 x 360;       2 = 176 x 144;     3 =    320 x 240;      4 = 352 x 288;     5 = 640 x 480;
-    private int                   camFrameInterval;
+    private int                   camFormatIndex = 1;   // MJPEG // YUV // bFormatIndex: 1 = uncompressed
+    private int                   camFrameIndex = 5; // bFrameIndex: 1 = 640 x 360;       2 = 176 x 144;     3 =    320 x 240;      4 = 352 x 288;     5 = 640 x 480;
+    private int                   camFrameInterval = 333333; // 333333 YUV = 30 fps // 666666 YUV = 15 fps
     private USBIso                usbIso;
     private int                   packetsPerRequest = 8;
     private int                     bConfigurationValue;
     public int                   maxPacketSize = 3072;
-    private int                   imageWidth;
-    private int                   imageHeight;
+    private int                   imageWidth = 640;
+    private int                   imageHeight = 480;
     private int                   activeUrbs = 16;
     private boolean               camIsOpen;
-    public int dateiHandlung;
+    public int fd;
     int maxVideoFrameGroesse;
     
-    public native void usbIsoLinux();
-    public native void kameraSchliessen();
-    
-    static {  
-        System.out.println("Bibliothek wird geladen");
-        System.load(new File("../Kam_c/dist/Kam.so").getAbsolutePath());
+    public void usbIsoLinux() throws IOException {
+        fd = Libc.INSTANCE.open(devicePath, Libc.O_RDWR);
+        usbIso = new USBIso(fd, packetsPerRequest, maxPacketSize);
+        usbdevfs_getdriver getdrv = new usbdevfs_getdriver();
+        usbdevfs_ioctl command = new usbdevfs_ioctl();
+        for(int i= 0; i < 2; i++) {
+            getdrv.ifno = i;
+            try {
+                Libc.INSTANCE.ioctl(fd, USBIso.USBDEVFS_GETDRIVER, getdrv);
+                System.out.printf("Interface %d of %s was connected to: %s%n", i, devicePath, Native.toString(getdrv.driver));
+                command.ifno = i;
+                command.ioctl_code = USBIso.USBDEVFS_DISCONNECT;
+                command.data = null;
+                try {
+                    Libc.INSTANCE.ioctl(fd, USBIso.USBDEVFS_IOCTL, command);
+                    System.out.printf("Successfully unlinked kerndriver from Interface %d of %s%n", i, devicePath);
+                } catch (LastErrorException ex) {
+                    System.out.printf("Failed to unlink kernel driver from Interface %d of %s: %s%n", i, devicePath, ex.getMessage());
+                }
+            } catch (LastErrorException ex) {
+                System.out.printf("Failed to retrieve driver for Interface %d of %s: %s%n", i, devicePath, ex.getMessage());
+            }
+            try {
+                Libc.INSTANCE.ioctl(fd, USBIso.USBDEVFS_CLAIMINTERFACE, new IntByReference(i));
+                System.out.printf("Successfully claimed Interface %d of %s%n", i, devicePath);
+            } catch (LastErrorException ex) {
+                System.out.printf("Failed to claim Interface %d of %s: %s%n", i, devicePath, ex.getMessage());
+            }
+            usbIso.setInterface(camStreamingInterfaceNum, 0);
+            ioctlControltransfer();
+            usbIso.setInterface(camStreamingInterfaceNum, ALT_SETTING);
+        }
+    }
+
+    public void kameraSchliessen() throws IOException {
+        usbIso.setInterface(camStreamingInterfaceNum, 0);
+        for(int if_num = 0; if_num <= camStreamingInterfaceNum; if_num++) {
+            int ret = Libc.INSTANCE.ioctl(fd, USBIso.USBDEVFS_RELEASEINTERFACE, new IntByReference(if_num));
+        }
+        Libc.INSTANCE.close(fd);
+    }
+
+    public void ioctlControltransfer() {
+        Memory buffer = new Memory(26);
+        buffer.clear();
+        buffer.setByte(0, (byte) 0x01); // what fields shall be kept fixed (0x01: dwFrameInterval)
+        buffer.setByte(1, (byte) 0x00); //
+        buffer.setByte(2, (byte) camFormatIndex); // video format index
+        buffer.setByte(3, (byte) camFrameIndex);  // video frame index // bFrameIndex: 1 = 640 x 360;       2 = 176 x 144;     3 =    320 x 240;      4 = 352 x 288;     5 = 640 x 480;
+        buffer.setByte(4, (byte) (camFrameInterval & 0xFF));
+        buffer.setByte(5, (byte) ((camFrameInterval >> 8) & 0xFF));
+        buffer.setByte(6, (byte) ((camFrameInterval >> 16) & 0xFF));
+        buffer.setByte(7, (byte) ((camFrameInterval >> 24) & 0xFF));
+        usbdevfs_ctrltransfer ctrl = new usbdevfs_ctrltransfer();
+        ctrl.wValue = USBIso.VS_PROBE_CONTROL << 8;
+        ctrl.wIndex = camStreamingInterfaceNum;
+        ctrl.wLength = (short) buffer.size();
+        ctrl.timeout = 2000; // USB should t/o after 5 seconds.
+        ctrl.data = buffer;
+        videoParameter(buffer.getByteArray(0, 26));
+        ctrl.bRequestType = USBIso.RT_CLASS_INTERFACE_SET;
+        ctrl.bRequest = USBIso.SET_CUR;
+
+        try {
+            Libc.INSTANCE.ioctl(fd, USBIso.USBDEVFS_CONTROL, ctrl);
+            System.out.printf("Camera initialization success%n");
+        } catch (LastErrorException ex) {
+            System.out.printf("Camera initialization failed: %s%n", ex.getMessage());
+        }
+
+        ctrl.bRequestType = (byte) USBIso.RT_CLASS_INTERFACE_GET;
+        ctrl.bRequest = (byte) USBIso.GET_CUR;
+
+        try {
+            Libc.INSTANCE.ioctl(fd, USBIso.USBDEVFS_CONTROL, ctrl);
+            videoParameter(buffer.getByteArray(0, 26));
+        } catch (LastErrorException ex) {
+            System.out.printf("Camera initialization failed. Streaming parms probe set failed: %s%n", ex.getMessage());
+        }
+
+        ctrl.bRequest = (byte) USBIso.SET_CUR;
+        ctrl.bRequestType = (byte) USBIso.RT_CLASS_INTERFACE_SET;
+        ctrl.wValue = USBIso.VS_COMMIT_CONTROL << 8;
+        try {
+            Libc.INSTANCE.ioctl(fd, USBIso.USBDEVFS_CONTROL, ctrl);
+            videoParameter(buffer.getByteArray(0, 26));
+        } catch (LastErrorException ex) {
+            System.out.printf("Camera initialization failed. Streaming parms commit set failed: %s%n", ex.getMessage());
+        }
+
+        ctrl.bRequest = (byte) USBIso.GET_CUR;
+        ctrl.bRequestType = (byte) USBIso.RT_CLASS_INTERFACE_GET;
+        ctrl.wValue = USBIso.VS_COMMIT_CONTROL << 8;
+        try {
+            Libc.INSTANCE.ioctl(fd, USBIso.USBDEVFS_CONTROL,  ctrl);
+            videoParameter(buffer.getByteArray(0, 26));
+        } catch (LastErrorException ex) {
+            System.out.printf("Camera initialization failed. Streaming parms commit get failed: %s%n.", ex.getMessage());
+        }
     }
 
     /**
@@ -114,16 +189,14 @@ public class Kam extends javax.swing.JFrame {
     }// </editor-fold>                        
 
     private void KameraActionPerformed(java.awt.event.ActionEvent evt) {                                       
-        // TODO add your handling code here:
-        usbIsoLinux();
+        try {
+            // TODO add your handling code here:
+            usbIsoLinux();
+        } catch (IOException ex) {
+            Logger.getLogger(Kam.class.getName()).log(Level.SEVERE, null, ex);
+        }
         
-        
-        
-        //dateiHandlung = geraetetreiber(kameras, camFrameIndex);
-        usbIso = new USBIso(dateiHandlung, packetsPerRequest, maxPacketSize);
         usbIso.preallocateRequests(activeUrbs);
-        //usbIso.preallocateRequests(16);
-        
         
         
         try {
@@ -144,7 +217,7 @@ public class Kam extends javax.swing.JFrame {
     /**
      * @param args the command line arguments
      */
-    public static void main(String args[]) {
+    public static void main(String args[]) throws IOException {
         /* Set the Nimbus look and feel */
         //<editor-fold defaultstate="collapsed" desc=" Look and feel setting code (optional) ">
         /* If Nimbus (introduced in Java SE 6) is not available, stay with the default look and feel.
@@ -227,25 +300,7 @@ private void startBackgroundJob (final Callable callable) throws Exception {
     // */
     //usbIso.submitUsbdevfs_urb(8,1);
    }
-   public void dateiHandlungSetzen(int dateiH){
-    
-        dateiHandlung = dateiH;
-    }
-   
-    public void einstellungDerKamera (int camStreamingAltSettingJni, int maxPacketSizeJNI, int packetsPerRequestJni,
-            int activeUrbsJni, int camFormatIndexJni, int camFrameIndexJni, int imageWidthJni, int imageHeightJni) {
-        camStreamingAltSetting = camStreamingAltSettingJni;              // 7 = 3x1024 bytes packet size // 6 = 3x 896 // 5 = 2x 1024 // 4 = 2x 768 // 3 = 1x 1024 // 2 = 1x 512 // 1 = 128 // 
-        maxPacketSize = maxPacketSizeJNI;
-        camFormatIndex = camFormatIndexJni;                       // bFormatIndex: 1 = uncompressed
-        camFrameIndex = camFrameIndexJni;                        // bFrameIndex: 1 = 640 x 360;       2 = 176 x 144;     3 =    320 x 240;      4 = 352 x 288;     5 = 640 x 480;
-        camFrameInterval = 333333;                 // 333333 YUV = 30 fps // 666666 YUV = 15 fps
-        packetsPerRequest = packetsPerRequestJni;
-        activeUrbs = activeUrbsJni;
-        imageWidth = imageWidthJni;
-        imageHeight = imageHeightJni;
-        System.out.println("imageWidth = " + imageWidth + " imageHeight = " + imageHeight);
-    }
-    
+
     public void videoParameter (byte[] p) {
         StringBuilder s = new StringBuilder(128);
         s.append("hint=0x" + Integer.toHexString(unpackUsbUInt2(p, 0)));
@@ -404,7 +459,5 @@ private void testIsochronousRead1() throws IOException {
         }
         kameraSchliessen();
     }
-
-
 
 }
