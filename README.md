@@ -17,7 +17,7 @@ Read out the camera specifications with the terminal command:
 2)
 
 
-Set the camera specifications: (Set different values for you camera device in the Kam.java file) (Edit the following value)
+Set the camera specifications: (Set different values for you camera device in the Kam.java file) (Edit the following values)
 
   BUS = 1;
   DEVICE = 5;
