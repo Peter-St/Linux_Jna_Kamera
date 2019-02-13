@@ -3,7 +3,7 @@ Camera stream over Jna.
 
 Still Under Development !
 
-Explaination:
+Explaination: (To know how the program works)
 
 
 1) 
