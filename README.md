@@ -36,7 +36,7 @@ Set the camera specifications: (Set different values for you camera device in th
   
   private static final int endpunktadresse = 0x81;
   
-    --> Will be found automatically in near future
+   --> Will be found automatically in near future
     
 
   private int                   camFormatIndex
