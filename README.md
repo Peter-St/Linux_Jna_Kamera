@@ -71,7 +71,10 @@ Some new features will be added soon (Videostream ... )
   
 Peter
 
-The first Method has the following outpu:
+
+
+
+Program output:
 
 Output from the control transfer:
 - Initial streaming parms: hint=0x0 format=1 frame=1 frameInterval=2000000 keyFrameRate=0 pFrameRate=0 compQuality=0 compWindowSize=0 delay=0 maxVideoFrameSize=0 maxPayloadTransferSize=0
