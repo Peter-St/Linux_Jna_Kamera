@@ -71,4 +71,26 @@ Some new features will be added soon (Videostream ... )
   
 Peter
 
-  
+The first Method has the following outpu:
+
+Output from the control transfer:
+-Initial streaming parms: hint=0x0 format=1 frame=1 frameInterval=2000000 keyFrameRate=0 pFrameRate=0 compQuality=0 compWindowSize=0 delay=0 maxVideoFrameSize=0 maxPayloadTransferSize=0
+-Probed streaming parms: hint=0x0 format=1 frame=1 frameInterval=2000000 keyFrameRate=0 pFrameRate=0 compQuality=0 compWindowSize=0 delay=0 maxVideoFrameSize=614400 maxPayloadTransferSize=3000
+-Final streaming parms: hint=0x0 format=1 frame=1 frameInterval=2000000 keyFrameRate=0 pFrameRate=0 compQuality=0 compWindowSize=0 delay=0 maxVideoFrameSize=614400 maxPayloadTransferSize=3000
+
+The first line are the values you set in the program, to connect the camera. (Initial streaming parms}
+The secound line are the values from the camera, which the camera returned from your values.
+And in the third line are the new saved and final values from the usb camera.
+
+Outpuf from the first Method: testisochronousstream1:
+
+(sample)
+- I/UsbCamTest1: requests=317 packetCnt=317 packetErrorCnt=0 packet0Cnt=5, packet12Cnt=0, packetDataCnt=312 packetHdr8cCnt=123 frameCnt=57
+- I/UsbCamTest1: 1/0 len=1280 data=0c 8c 00 00 00 00 9c 1e 4b 4b 31 05 10 80 10 80 10 80 10 80 10 80 10 80 10 80 10 80 10 80 10 80
+- I/UsbCamTest1: 2/0 len=1280 data=0c 8c 00 00 00 00 0c d5 66 4b 3f 06 10 80 10 80 10 80 10 80 10 80 10 80 10 80 10 80 10 80 10 80
+- I/UsbCamTest1: 13/0 len=304 data=0c 8e 00 00 00 00 1f a3 fd 4b f7 03 10 80 10 80 10 80 10 80 10 80 10 80 10 80 10 80 10 80 10 80 EOF frameLen=10436
+
+The first line shows a summary of the output. Here you see How many frame were collected, how many errors have been detected and you can take a look at the packetsize of the requests.
+The secound line is a line from a packet of a URB: 1/0 means first paket in request number 0. --> 2/0 means second package .. The data shows the offsets wich were transmitted.
+The third line shows the data of a package and the hint: EOF frameLen=10436.  --> For Example here a frame ends with a length of 10436 wich is not 614400 as we expected from the controltransfer, so you may have to change some values of you program to get a valid frame size.
+
