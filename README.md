@@ -10,8 +10,10 @@ Explaination: (To know how the program works)
 
 
 Read out the camera specifications with the terminal command:
- " lsusb -v -d xxxx:xxxx "  -->
-  xxxx:xxxx = ProductID : VendorID
+  
+- list with `lsusb` to get all connected devices
+- Detail informations can be received with Vendor+Produkt ID: `lsusb -v -d <vendor>:<product>`
+- Variant over: `lsusb -v -s <bus>:<device>`
 
 
 2)
