@@ -64,5 +64,13 @@
           </plugin>
       </plugins>
       <sourceDirectory>src</sourceDirectory>
+      <resources>
+          <resource>
+              <directory>${basedir}</directory>
+              <includes>
+                  <include>README.md</include>
+              </includes>
+          </resource>
+      </resources>
   </build>
 </project>

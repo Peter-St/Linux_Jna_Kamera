@@ -8,38 +8,41 @@ import com.sun.jna.ptr.IntByReference;
 import humer.kamera.USBIso.usbdevfs_ctrltransfer;
 import humer.kamera.USBIso.usbdevfs_getdriver;
 import humer.kamera.USBIso.usbdevfs_ioctl;
+import java.io.ByteArrayOutputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class Kam extends javax.swing.JFrame {
+    // REQUIRED CONFIGURATION
     private static final int BUS = 1;
     private static final int DEVICE = 5;
     private static final int ALT_SETTING = 6; // 7 = 3*1024 bytes packet size // 6 = 3*896 // 5 = 2*1024 // 4 = 2*768 // 3 = 1x 1024 // 2 = 1x 512 // 1 = 128 //
+    // ADDITIONAL CONFIGURATION
+    private static final String dumpFile = "target/test.dump";
     private static final int camStreamingInterfaceNum = 1;
     private static final int camControlInterfaceNum = 0;
     private static final int endpunktadresse = 0x81;
+    private static final int camFormatIndex = 1;   // MJPEG // YUV // bFormatIndex: 1 = uncompressed
+    private static final int camFrameIndex = 1; // bFrameIndex: 1 = 640 x 360;       2 = 176 x 144;     3 =    320 x 240;      4 = 352 x 288;     5 = 640 x 480;
+    private static final int camFrameInterval = 333333; // 333333 YUV = 30 fps // 666666 YUV = 15 fps
+    private static final int packetsPerRequest = 8;
+    private static final int maxPacketSize = 3072;
+    private static final int activeUrbs = 16;
+
     private static final String devicePath = String.format("/dev/bus/usb/%03d/%03d", BUS, DEVICE);
-    private boolean               backgroundJobActive;
-    private int					  camStreamingAltSetting;
-                    
-    private boolean               bulkMode;
-    private int                   camFormatIndex = 1;   // MJPEG // YUV // bFormatIndex: 1 = uncompressed
-    private int                   camFrameIndex = 5; // bFrameIndex: 1 = 640 x 360;       2 = 176 x 144;     3 =    320 x 240;      4 = 352 x 288;     5 = 640 x 480;
-    private int                   camFrameInterval = 333333; // 333333 YUV = 30 fps // 666666 YUV = 15 fps
-    private USBIso                usbIso;
-    private int                   packetsPerRequest = 8;
-    private int                     bConfigurationValue;
-    public int                   maxPacketSize = 3072;
-    private int                   imageWidth = 640;
-    private int                   imageHeight = 480;
-    private int                   activeUrbs = 16;
-    private boolean               camIsOpen;
-    public int fd;
-    int maxVideoFrameGroesse;
-    
+
+    private volatile IsochronousRead1 runningTransfer;
+    private USBIso usbIso;
+    private int fd;
+
     public void usbIsoLinux() throws IOException {
         fd = Libc.INSTANCE.open(devicePath, Libc.O_RDWR);
         usbIso = new USBIso(fd, packetsPerRequest, maxPacketSize);
@@ -146,6 +149,26 @@ public class Kam extends javax.swing.JFrame {
      */
     public Kam() {
         initComponents();
+        try {
+            Path path = Paths.get("README.md");
+            if (Files.exists(path)) {
+                infoPanel.setText(new String(Files.readAllBytes(path), StandardCharsets.UTF_8));
+            } else {
+                try(InputStream is = Kam.class.getResourceAsStream("/README.md")) {
+                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                    byte[] buffer = new byte[512 * 1024];
+                    int read = 0;
+                    while((read = is.read(buffer)) > 0) {
+                        baos.write(buffer, 0, read);
+                    }
+                    infoPanel.setText(new String(baos.toByteArray(), StandardCharsets.UTF_8));
+                }
+            }
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
+        infoPanel.setCaretPosition(0);
+        setSize(800, 600);
     }
 
     /**
@@ -158,6 +181,8 @@ public class Kam extends javax.swing.JFrame {
     private void initComponents() {
 
         Kamera = new javax.swing.JButton();
+        infoPanelScrollPane = new javax.swing.JScrollPane();
+        infoPanel = new javax.swing.JTextPane();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
@@ -168,53 +193,56 @@ public class Kam extends javax.swing.JFrame {
             }
         });
 
+        infoPanelScrollPane.setOpaque(false);
+
+        infoPanel.setEditable(false);
+        infoPanel.setFont(new java.awt.Font("Monospaced", 0, 12)); // NOI18N
+        infoPanel.setOpaque(false);
+        infoPanelScrollPane.setViewportView(infoPanel);
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addGap(68, 68, 68)
-                .addComponent(Kamera)
-                .addContainerGap(274, Short.MAX_VALUE))
+                .addContainerGap()
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(infoPanelScrollPane, javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addComponent(Kamera, javax.swing.GroupLayout.DEFAULT_SIZE, 466, Short.MAX_VALUE))
+                .addContainerGap())
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addGap(36, 36, 36)
+                .addContainerGap()
+                .addComponent(infoPanelScrollPane, javax.swing.GroupLayout.DEFAULT_SIZE, 239, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(Kamera)
-                .addContainerGap(233, Short.MAX_VALUE))
+                .addContainerGap())
         );
 
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
 
-    private void KameraActionPerformed(java.awt.event.ActionEvent evt) {                                       
+    private void KameraActionPerformed(java.awt.event.ActionEvent evt) {
+        if(runningTransfer != null) {
+            return;
+        }
+
         try {
             // TODO add your handling code here:
             usbIsoLinux();
         } catch (IOException ex) {
             Logger.getLogger(Kam.class.getName()).log(Level.SEVERE, null, ex);
         }
-        
+
         usbIso.preallocateRequests(activeUrbs);
-        
-        
-        try {
-            startBackgroundJob(new Callable<Void>() {
-                @Override
-                public Void call() throws Exception {
-                    testIsochronousRead1();
-                    return null;
-                }
-            });
-        } catch (Exception e) {
-            System.out.println(e);
-            return;
-        }
-        System.out.println("OK");
-    }                                      
-                                      
+
+        runningTransfer = new IsochronousRead1();
+        runningTransfer.start();
+    }
+
     /**
      * @param args the command line arguments
      */
@@ -252,25 +280,9 @@ public class Kam extends javax.swing.JFrame {
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton Kamera;
+    private javax.swing.JTextPane infoPanel;
+    private javax.swing.JScrollPane infoPanelScrollPane;
     // End of variables declaration//GEN-END:variables
-
-
-private void startBackgroundJob (final Callable callable) throws Exception {
-        if (backgroundJobActive) {
-            throw new Exception("Background job is already active."); }
-        backgroundJobActive = true;
-        Thread thread = new Thread() {
-            @Override public void run() {
-                try {
-                    callable.call(); }
-                catch (Throwable e) {
-                	e.printStackTrace();}
-                finally {
-                    backgroundJobActive = false; }}};
-        thread.setPriority(Thread.MAX_PRIORITY);
-        thread.start(); 
-    }
-
    
     private static String hexDump (byte[] buf, int len) {
         StringBuilder s = new StringBuilder(len * 3);
@@ -314,7 +326,6 @@ private void startBackgroundJob (final Callable callable) throws Exception {
         s.append(" compWindowSize=" + unpackUsbUInt2(p, 14));
         s.append(" delay=" + unpackUsbUInt2(p, 16));
         s.append(" maxVideoFrameSize=" + unpackUsbInt(p, 18));
-        maxVideoFrameGroesse = unpackUsbInt(p, 18);
         s.append(" maxPayloadTransferSize=" + unpackUsbInt(p, 22));
         System.out.println( s.toString());
     }   
@@ -363,102 +374,113 @@ private void startBackgroundJob (final Callable callable) throws Exception {
         }
     }
 
-private void testIsochronousRead1() throws IOException {
-        //Thread.sleep(500);
-        ArrayList<String> logArray = new ArrayList<String>(512);
-        int packetCnt = 0;
-        int packet0Cnt = 0;
-        int packet12Cnt = 0;
-        int packetDataCnt = 0;
-        int packetHdr8Ccnt = 0;
-        int packetErrorCnt = 0;
-        int frameCnt = 0;
-        long time0 = System.currentTimeMillis();
-        int frameLen = 0;
-        int requestCnt = 0;
-        byte[] data = new byte[maxPacketSize];
+    class IsochronousRead1 extends Thread {
+
+        public IsochronousRead1() {
+            setPriority(Thread.MAX_PRIORITY);
+        }
+
+        public void run() {
+            try (FileOutputStream fos = new FileOutputStream(dumpFile)) {
+                //Thread.sleep(500);
+                ArrayList<String> logArray = new ArrayList<>(512);
+                int packetCnt = 0;
+                int packet0Cnt = 0;
+                int packet12Cnt = 0;
+                int packetDataCnt = 0;
+                int packetHdr8Ccnt = 0;
+                int packetErrorCnt = 0;
+                int frameCnt = 0;
+                long time0 = System.currentTimeMillis();
+                int frameLen = 0;
+                int requestCnt = 0;
+                byte[] data = new byte[maxPacketSize];
                 try {
                     //enableStreaming(true);
                     submitActiveUrbs();
                 } catch (IOException ex) {
                     Logger.getLogger(Kam.class.getName()).log(Level.SEVERE, null, ex);
                 }
-        while (System.currentTimeMillis() - time0 < 3000) {
-                boolean stopReq = false;
-                USBIso.Request req = usbIso.reapRequest(true);
-                for (int packetNo = 0; packetNo < req.getPacketCount(); packetNo++) {
-                    packetCnt++;
-                    int packetLen = req.getPacketActualLength(packetNo);
-                    if (packetLen == 0) {
-                        packet0Cnt++;
+                while (System.currentTimeMillis() - time0 < 3000) {
+                    boolean stopReq = false;
+                    USBIso.Request req = usbIso.reapRequest(true);
+                    for (int packetNo = 0; packetNo < req.getPacketCount(); packetNo++) {
+                        packetCnt++;
+                        int packetLen = req.getPacketActualLength(packetNo);
+                        if (packetLen == 0) {
+                            packet0Cnt++;
+                        }
+                        if (packetLen == 12) {
+                            packet12Cnt++;
+                        }
+                        if (packetLen == 0) {
+                            continue;
+                        }
+                        StringBuilder logEntry = new StringBuilder(requestCnt + "/" + packetNo + " len=" + packetLen);
+                        int packetStatus = req.getPacketStatus(packetNo);
+                        if (packetStatus != 0) {
+                            System.out.println("Packet status=" + packetStatus);
+                            stopReq = true;
+                            break;
+                        }
+                        if (packetLen > 0) {
+                            if (packetLen > maxPacketSize) {
+                                //throw new Exception("packetLen > maxPacketSize");
+                            }
+                            req.getPacketData(packetNo, data, packetLen);
+                            logEntry.append(" data=" + hexDump(data, Math.min(32, packetLen)));
+                            int headerLen = data[0] & 0xff;
+
+                            try {
+                                if (headerLen < 2 || headerLen > packetLen) {
+                                    //    skipFrames = 1;
+                                }
+                            } catch (Exception e) {
+                                System.out.println("Invalid payload header length.");
+                            }
+                            int headerFlags = data[1] & 0xff;
+                            if (headerFlags == 0x8c) {
+                                packetHdr8Ccnt++;
+                            }
+                            // logEntry.append(" hdrLen=" + headerLen + " hdr[1]=0x" + Integer.toHexString(headerFlags));
+                            int dataLen = packetLen - headerLen;
+                            if (dataLen > 0) {
+                                packetDataCnt++;
+                            }
+                            fos.write(data, headerLen, dataLen);
+                            frameLen += dataLen;
+                            if ((headerFlags & 0x40) != 0) {
+                                logEntry.append(" *** Error ***");
+                                packetErrorCnt++;
+                            }
+                            if ((headerFlags & 2) != 0) {
+                                logEntry.append(" EOF frameLen=" + frameLen);
+                                frameCnt++;
+                                frameLen = 0;
+                            }
+                        }
+                        logArray.add(logEntry.toString());
                     }
-                    if (packetLen == 12) {
-                        packet12Cnt++;
-                    }
-                    if (packetLen == 0) {
-                        continue;
-                    }
-                    StringBuilder logEntry = new StringBuilder(requestCnt + "/" + packetNo + " len=" + packetLen);
-                    int packetStatus = req.getPacketStatus(packetNo);
-                    if (packetStatus != 0) {
-                        System.out.println("Packet status=" + packetStatus);
-                        stopReq = true;
+                    if (stopReq) {
                         break;
                     }
-                    if (packetLen > 0) {
-                        if (packetLen > maxPacketSize) {
-                            //throw new Exception("packetLen > maxPacketSize");
-                        }
-                        req.getPacketData(packetNo, data, packetLen);
-                        logEntry.append(" data=" + hexDump(data, Math.min(32, packetLen)));
-                        int headerLen = data[0] & 0xff;
-                        
-                        try { if (headerLen < 2 || headerLen > packetLen) {
-                            //    skipFrames = 1;
-                        }
-                        } catch (Exception e) {
-                            System.out.println("Invalid payload header length.");
-                        }
-                        int headerFlags = data[1] & 0xff;
-                        if (headerFlags == 0x8c) {
-                            packetHdr8Ccnt++;
-                        }
-                        // logEntry.append(" hdrLen=" + headerLen + " hdr[1]=0x" + Integer.toHexString(headerFlags));
-                        int dataLen = packetLen - headerLen;
-                        if (dataLen > 0) {
-                            packetDataCnt++;
-                        }
-                        frameLen += dataLen;
-                        if ((headerFlags & 0x40) != 0) {
-                            logEntry.append(" *** Error ***");
-                            packetErrorCnt++;
-                        }
-                        if ((headerFlags & 2) != 0) {
-                            logEntry.append(" EOF frameLen=" + frameLen);
-                            frameCnt++;
-                            frameLen = 0;
-                        }
-                    }
-                    logArray.add(logEntry.toString());
-                }
-                if (stopReq) {
-                    break;
-                }
-                requestCnt++;
-                req.initialize((byte) 0x81);
-                req.submit();
+                    requestCnt++;
+                    req.initialize((byte) 0x81);
+                    req.submit();
 
+                }
+                System.out.println("requests=" + requestCnt + " packetCnt=" + packetCnt + " packetErrorCnt=" + packetErrorCnt + " packet0Cnt=" + packet0Cnt + ", packet12Cnt=" + packet12Cnt + ", packetDataCnt=" + packetDataCnt + " packetHdr8cCnt=" + packetHdr8Ccnt + " frameCnt=" + frameCnt);
+                for (String s : logArray) {
+                    System.out.println(s);
+                }
+
+                kameraSchliessen();
+
+                runningTransfer = null;
+            } catch (IOException ex) {
+                Logger.getLogger(Kam.class.getName()).log(Level.SEVERE, null, ex);
+            }
         }
-        try {
-          //  enableStreaming(false);
-        } catch (Exception e) {
-            System.out.println("Exception during enableStreaming(false): " + e);
-        }
-        System.out.println("requests=" + requestCnt + " packetCnt=" + packetCnt + " packetErrorCnt=" + packetErrorCnt + " packet0Cnt=" + packet0Cnt + ", packet12Cnt=" + packet12Cnt + ", packetDataCnt=" + packetDataCnt + " packetHdr8cCnt=" + packetHdr8Ccnt + " frameCnt=" + frameCnt);
-        for (String s : logArray) {
-            System.out.println(s);
-        }
-        kameraSchliessen();
     }
 
 }
