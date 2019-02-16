@@ -9,6 +9,7 @@ import humer.kamera.USBIso.usbdevfs_ctrltransfer;
 import humer.kamera.USBIso.usbdevfs_getdriver;
 import humer.kamera.USBIso.usbdevfs_ioctl;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -381,7 +382,9 @@ public class Kam extends javax.swing.JFrame {
         }
 
         public void run() {
-            try (FileOutputStream fos = new FileOutputStream(dumpFile)) {
+            File dump = new File(dumpFile).getAbsoluteFile();
+            dump.getParentFile().mkdirs();
+            try (FileOutputStream fos = new FileOutputStream(dump)) {
                 //Thread.sleep(500);
                 ArrayList<String> logArray = new ArrayList<>(512);
                 int packetCnt = 0;
