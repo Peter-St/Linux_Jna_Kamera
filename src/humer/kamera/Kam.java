@@ -5,9 +5,15 @@ import com.sun.jna.LastErrorException;
 import com.sun.jna.Memory;
 import com.sun.jna.Native;
 import com.sun.jna.ptr.IntByReference;
-import humer.kamera.USBIso.usbdevfs_ctrltransfer;
-import humer.kamera.USBIso.usbdevfs_getdriver;
-import humer.kamera.USBIso.usbdevfs_ioctl;
+import static humer.kamera.usbdevice_fs.USBDEVFS_CLAIMINTERFACE;
+import static humer.kamera.usbdevice_fs.USBDEVFS_CONTROL;
+import static humer.kamera.usbdevice_fs.USBDEVFS_DISCONNECT;
+import static humer.kamera.usbdevice_fs.USBDEVFS_GETDRIVER;
+import static humer.kamera.usbdevice_fs.USBDEVFS_IOCTL;
+import static humer.kamera.usbdevice_fs.USBDEVFS_RELEASEINTERFACE;
+import humer.kamera.usbdevice_fs.usbdevfs_ctrltransfer;
+import humer.kamera.usbdevice_fs.usbdevfs_getdriver;
+import humer.kamera.usbdevice_fs.usbdevfs_ioctl;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -52,13 +58,13 @@ public class Kam extends javax.swing.JFrame {
         for(int i= 0; i < 2; i++) {
             getdrv.ifno = i;
             try {
-                Libc.INSTANCE.ioctl(fd, USBIso.USBDEVFS_GETDRIVER, getdrv);
+                Libc.INSTANCE.ioctl(fd, USBDEVFS_GETDRIVER, getdrv);
                 System.out.printf("Interface %d of %s was connected to: %s%n", i, devicePath, Native.toString(getdrv.driver));
                 command.ifno = i;
-                command.ioctl_code = USBIso.USBDEVFS_DISCONNECT;
+                command.ioctl_code = USBDEVFS_DISCONNECT;
                 command.data = null;
                 try {
-                    Libc.INSTANCE.ioctl(fd, USBIso.USBDEVFS_IOCTL, command);
+                    Libc.INSTANCE.ioctl(fd, USBDEVFS_IOCTL, command);
                     System.out.printf("Successfully unlinked kerndriver from Interface %d of %s%n", i, devicePath);
                 } catch (LastErrorException ex) {
                     System.out.printf("Failed to unlink kernel driver from Interface %d of %s: %s%n", i, devicePath, ex.getMessage());
@@ -67,21 +73,21 @@ public class Kam extends javax.swing.JFrame {
                 System.out.printf("Failed to retrieve driver for Interface %d of %s: %s%n", i, devicePath, ex.getMessage());
             }
             try {
-                Libc.INSTANCE.ioctl(fd, USBIso.USBDEVFS_CLAIMINTERFACE, new IntByReference(i));
+                Libc.INSTANCE.ioctl(fd, USBDEVFS_CLAIMINTERFACE, new IntByReference(i));
                 System.out.printf("Successfully claimed Interface %d of %s%n", i, devicePath);
             } catch (LastErrorException ex) {
                 System.out.printf("Failed to claim Interface %d of %s: %s%n", i, devicePath, ex.getMessage());
             }
-            usbIso.setInterface(camStreamingInterfaceNum, 0);
+            usbdevice_fs_util.setInterface(fd, camStreamingInterfaceNum, 0);
             ioctlControltransfer();
-            usbIso.setInterface(camStreamingInterfaceNum, ALT_SETTING);
+            usbdevice_fs_util.setInterface(fd, camStreamingInterfaceNum, ALT_SETTING);
         }
     }
 
     public void kameraSchliessen() throws IOException {
-        usbIso.setInterface(camStreamingInterfaceNum, 0);
+        usbdevice_fs_util.setInterface(fd, camStreamingInterfaceNum, 0);
         for(int if_num = 0; if_num <= camStreamingInterfaceNum; if_num++) {
-            int ret = Libc.INSTANCE.ioctl(fd, USBIso.USBDEVFS_RELEASEINTERFACE, new IntByReference(if_num));
+            int ret = Libc.INSTANCE.ioctl(fd, USBDEVFS_RELEASEINTERFACE, new IntByReference(if_num));
         }
         Libc.INSTANCE.close(fd);
     }
@@ -108,7 +114,7 @@ public class Kam extends javax.swing.JFrame {
         ctrl.bRequest = USBIso.SET_CUR;
 
         try {
-            Libc.INSTANCE.ioctl(fd, USBIso.USBDEVFS_CONTROL, ctrl);
+            Libc.INSTANCE.ioctl(fd, USBDEVFS_CONTROL, ctrl);
             System.out.printf("Camera initialization success%n");
         } catch (LastErrorException ex) {
             System.out.printf("Camera initialization failed: %s%n", ex.getMessage());
@@ -118,7 +124,7 @@ public class Kam extends javax.swing.JFrame {
         ctrl.bRequest = (byte) USBIso.GET_CUR;
 
         try {
-            Libc.INSTANCE.ioctl(fd, USBIso.USBDEVFS_CONTROL, ctrl);
+            Libc.INSTANCE.ioctl(fd, USBDEVFS_CONTROL, ctrl);
             videoParameter(buffer.getByteArray(0, 26));
         } catch (LastErrorException ex) {
             System.out.printf("Camera initialization failed. Streaming parms probe set failed: %s%n", ex.getMessage());
@@ -128,7 +134,7 @@ public class Kam extends javax.swing.JFrame {
         ctrl.bRequestType = (byte) USBIso.RT_CLASS_INTERFACE_SET;
         ctrl.wValue = USBIso.VS_COMMIT_CONTROL << 8;
         try {
-            Libc.INSTANCE.ioctl(fd, USBIso.USBDEVFS_CONTROL, ctrl);
+            Libc.INSTANCE.ioctl(fd, USBDEVFS_CONTROL, ctrl);
             videoParameter(buffer.getByteArray(0, 26));
         } catch (LastErrorException ex) {
             System.out.printf("Camera initialization failed. Streaming parms commit set failed: %s%n", ex.getMessage());
@@ -138,7 +144,7 @@ public class Kam extends javax.swing.JFrame {
         ctrl.bRequestType = (byte) USBIso.RT_CLASS_INTERFACE_GET;
         ctrl.wValue = USBIso.VS_COMMIT_CONTROL << 8;
         try {
-            Libc.INSTANCE.ioctl(fd, USBIso.USBDEVFS_CONTROL,  ctrl);
+            Libc.INSTANCE.ioctl(fd, USBDEVFS_CONTROL,  ctrl);
             videoParameter(buffer.getByteArray(0, 26));
         } catch (LastErrorException ex) {
             System.out.printf("Camera initialization failed. Streaming parms commit get failed: %s%n.", ex.getMessage());
