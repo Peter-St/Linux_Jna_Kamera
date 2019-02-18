@@ -21,8 +21,8 @@ import static humer.kamera.usbdevice_fs.USBDEVFS_DISCARDURB;
 import static humer.kamera.usbdevice_fs.USBDEVFS_REAPURB;
 import static humer.kamera.usbdevice_fs.USBDEVFS_REAPURBNDELAY;
 import static humer.kamera.usbdevice_fs.USBDEVFS_SUBMITURB;
-import static humer.kamera.usbdevice_fs.USBDEVFS_URB_ISO_ASAP;
-import static humer.kamera.usbdevice_fs.USBDEVFS_URB_TYPE_ISO;
+import humer.kamera.usbdevice_fs.USBDEVFS_URB_FLAG;
+import humer.kamera.usbdevice_fs.USBDEVFS_URB_TYPE;
 import humer.kamera.usbdevice_fs.Urb;
 
 import java.io.IOException;
@@ -313,8 +313,8 @@ public class USBIso {
             }
             this.endpointAddr = endpointAddr;
             urb.setEndpoint(endpointAddr);
-            urb.setType(USBDEVFS_URB_TYPE_ISO);
-            urb.setFlags(USBDEVFS_URB_ISO_ASAP);
+            urb.setType(USBDEVFS_URB_TYPE.ISO.getValue());
+            urb.setFlags(USBDEVFS_URB_FLAG.ISO_ASAP.getValue());
             urb.setBuffer(buffer);
             urb.setBufferLength((int) buffer.size());
             urb.setActualLength(0);
