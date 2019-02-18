@@ -15,7 +15,6 @@ package humer.kamera;
 
 import com.sun.jna.LastErrorException;
 import com.sun.jna.Memory;
-import com.sun.jna.Structure;
 import com.sun.jna.ptr.PointerByReference;
 import humer.kamera.USBIso.Request;
 import static humer.kamera.usbdevice_fs.USBDEVFS_DISCARDURB;
@@ -28,8 +27,6 @@ import humer.kamera.usbdevice_fs.Urb;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 
 /**
  * An USB isochronous transfer controller.

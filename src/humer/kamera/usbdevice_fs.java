@@ -4,14 +4,13 @@ package humer.kamera;
 import com.sun.jna.Native;
 import com.sun.jna.Pointer;
 import com.sun.jna.Structure;
+import com.sun.jna.Structure.FieldOrder;
 import static humer.kamera.Ioctl._IO;
 import static humer.kamera.Ioctl._IOR;
 import static humer.kamera.Ioctl._IOW;
 import static humer.kamera.Ioctl._IOWR;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.Arrays;
-import java.util.List;
 
 public interface usbdevice_fs {
     public static final byte USBDEVFS_URB_TYPE_ISO = 0;
@@ -23,8 +22,8 @@ public interface usbdevice_fs {
     public static final int USBDEVFS_SETINTERFACE = _IOR('U', 4, new usbdevfs_setinterface().size());
     public static final int USBDEVFS_SUBMITURB = _IOR('U', 10, new Urb.usbdevfs_urb().size());
     public static final int USBDEVFS_DISCARDURB = _IO('U', 11);
-    public static final int USBDEVFS_REAPURB = _IOW('U', 12, Pointer.SIZE);
-    public static final int USBDEVFS_REAPURBNDELAY = _IOW('U', 13, Pointer.SIZE);
+    public static final int USBDEVFS_REAPURB = _IOW('U', 12, Native.POINTER_SIZE);
+    public static final int USBDEVFS_REAPURBNDELAY = _IOW('U', 13, Native.POINTER_SIZE);
     public static final int USBDEVFS_CLEAR_HALT = _IOR('U', 21, 4);
     public static final int USBDEVFS_RELEASEINTERFACE = _IOR('U', 16, 4);
     public static final int USBDEVFS_GETDRIVER = _IOW('U', 8, new usbdevfs_getdriver().size());
@@ -45,6 +44,10 @@ public interface usbdevice_fs {
          * these are not modelled in this case, as JNA gets the offsets wrong in
          * this case
          */
+        @FieldOrder({"type", "endpoint", "status", "flags", "buffer",
+            "buffer_length", "actual_length","start_frame",
+            "number_of_packets_stream_id", "error_count", "signr",
+            "usercontext"})
         public static final class usbdevfs_urb extends Structure {
             public byte type;
             public byte endpoint;
@@ -60,28 +63,16 @@ public interface usbdevice_fs {
             public Pointer usercontext;
 
             @Override
-            protected List<String> getFieldOrder() {
-                return Arrays.asList("type", "endpoint", "status", "flags",
-                        "buffer", "buffer_length", "actual_length","start_frame",
-                        "number_of_packets_stream_id", "error_count",
-                        "signr", "usercontext");
-            }
-
-            @Override
             public int fieldOffset(String field) {
                 return super.fieldOffset(field);
             }
         }
 
+        @FieldOrder({"length", "actual_length", "status"})
         public static final class usbdevfs_iso_packet_desc extends Structure {
             public int length;
             public int actual_length;
             public int status;
-
-            @Override
-            protected List<String> getFieldOrder() {
-                return Arrays.asList("length", "actual_length", "status");
-            }
 
             @Override
             public int fieldOffset(String field) {
@@ -181,12 +172,12 @@ public interface usbdevice_fs {
         }
 
         public void setBuffer(Pointer buffer) {
-            if(Pointer.SIZE == 4) {
+            if(Native.POINTER_SIZE == 4) {
                 urbBuf.putInt(usbdevfs_urb_buffer, (int) Pointer.nativeValue(buffer));
-            } else if (Pointer.SIZE == 8) {
+            } else if (Native.POINTER_SIZE == 8) {
                 urbBuf.putLong(usbdevfs_urb_buffer, Pointer.nativeValue(buffer));
             } else {
-                throw new IllegalStateException("Unhandled Pointer Size: " + Pointer.SIZE);
+                throw new IllegalStateException("Unhandled Pointer Size: " + Native.POINTER_SIZE);
             }
         }
 
@@ -227,22 +218,22 @@ public interface usbdevice_fs {
         }
 
         public int getUserContext() {
-            if(Pointer.SIZE == 4) {
+            if(Native.POINTER_SIZE == 4) {
                 return urbBuf.getInt(usbdevfs_urb_usercontext);
-            } else if (Pointer.SIZE == 8) {
+            } else if (Native.POINTER_SIZE == 8) {
                 return (int) urbBuf.getLong(usbdevfs_urb_usercontext);
             } else {
-                throw new IllegalStateException("Unhandled Pointer Size: " + Pointer.SIZE);
+                throw new IllegalStateException("Unhandled Pointer Size: " + Native.POINTER_SIZE);
             }
         }
 
         public void setUserContext(int userContext) {
-            if(Pointer.SIZE == 4) {
+            if(Native.POINTER_SIZE == 4) {
                 urbBuf.putInt(usbdevfs_urb_usercontext, userContext);
-            } else if (Pointer.SIZE == 8) {
+            } else if (Native.POINTER_SIZE == 8) {
                 urbBuf.putLong(usbdevfs_urb_usercontext, userContext);
             } else {
-                throw new IllegalStateException("Unhandled Pointer Size: " + Pointer.SIZE);
+                throw new IllegalStateException("Unhandled Pointer Size: " + Native.POINTER_SIZE);
             }
         }
 
@@ -291,27 +282,20 @@ public interface usbdevice_fs {
         }
     }
 
+    @FieldOrder({"ifno", "driver"})
     public static class usbdevfs_getdriver extends Structure {
         public int ifno;
         public byte[] driver = new byte[USBDEVFS_MAXDRIVERNAME + 1];
-
-        @Override
-        protected List<String> getFieldOrder() {
-            return Arrays.asList("ifno", "driver");
-        }
     }
 
+    @FieldOrder({"ifno", "ioctl_code", "data"})
     public static class usbdevfs_ioctl extends Structure {
         public int ifno;
         public int ioctl_code;
         public Pointer data;
-
-        @Override
-        protected List<String> getFieldOrder() {
-            return Arrays.asList("ifno", "ioctl_code", "data");
-        }
     }
 
+    @FieldOrder({"bRequestType", "bRequest", "wValue", "wIndex", "wLength", "timeout", "data"})
     public static class usbdevfs_ctrltransfer extends Structure {
         public byte bRequestType;
         public byte bRequest;
@@ -320,25 +304,14 @@ public interface usbdevice_fs {
         public short wLength;
         public int timeout; /* in ms */
         public Pointer data;
-
-        @Override
-        protected List<String> getFieldOrder() {
-            return Arrays.asList("bRequestType", "bRequest", "wValue", "wIndex", "wLength", "timeout", "data");
-        }
     }
 
     /**
      * Modeled after struct usbdevfs_setinterface in <linuxKernel>/include/uapi/linux/usbdevice_fs.h.
      */
+    @FieldOrder({"interfaceId", "altsetting"})
     public static class usbdevfs_setinterface extends Structure {
         public int interfaceId;
         public int altsetting;
-
-        @Override
-        protected List getFieldOrder() {
-            return Arrays.asList(
-                    "interfaceId",
-                    "altsetting");
-        }
     }
 }

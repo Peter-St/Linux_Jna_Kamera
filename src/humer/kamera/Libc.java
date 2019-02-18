@@ -10,7 +10,7 @@ import com.sun.jna.ptr.PointerByReference;
 
 public interface Libc extends Library {
 
-    public static final Libc INSTANCE = (Libc) Native.loadLibrary("c", Libc.class);
+    public static final Libc INSTANCE = Native.load("c", Libc.class);
 
     public static final int O_RDONLY = 00;
     public static final int O_WRONLY = 01;
