@@ -70,12 +70,6 @@ public class USBIso {
     //--- Request object -----------------------------------------------------------
     private static final int EINVAL = 22;
 
-    //--- Main logic ---------------------------------------------------------------
-    private int fileDescriptor;
-    private ArrayList<Request> requests = new ArrayList<>();
-    private static int maxPacketsPerRequest;
-    private int maxPacketSize;
-
     // Request types (bmRequestType):
     public static final int RT_STANDARD_INTERFACE_SET = 0x01;
     public static final int RT_CLASS_INTERFACE_SET = 0x21;
@@ -108,7 +102,12 @@ public class USBIso {
     public static final int UVC_STREAM_EOF = (1 << 1);
     public static final int UVC_STREAM_FID = (1 << 0);
 
-    
+    private final ArrayList<Request> requests = new ArrayList<>();
+    private final int fileDescriptor;
+    private final int maxPacketsPerRequest;
+    private final int maxPacketSize;
+    private final byte endpointAddress;
+
     /**
      * Creates an isochronous transfer controller instance.
      * <p>
@@ -119,10 +118,11 @@ public class USBIso {
      * @param maxPacketsPerRequest The maximum number of packets per request.
      * @param maxPacketSize        The maximum packet size.
      */
-    public USBIso(int fileDescriptor, int maxPacketsPerRequest, int maxPacketSize) {
+    public USBIso(int fileDescriptor, int maxPacketsPerRequest, int maxPacketSize, byte endpointAddress) {
         this.fileDescriptor = fileDescriptor;
         this.maxPacketsPerRequest = maxPacketsPerRequest;
         this.maxPacketSize = maxPacketSize;
+        this.endpointAddress = endpointAddress;
     }
 
     /**
@@ -138,9 +138,15 @@ public class USBIso {
      */
     public void preallocateRequests(int n) {
         while (requests.size() < n) {
-            new Request();
+            allocateRequest();
         }
-        System.out.println("Alle Anfragen erfolgreich vorbereitet");
+    }
+
+    public void submitUrbs() throws IOException {
+        for (Request req: requests) {
+            req.initialize();
+            req.submit();
+        }
     }
 
     /**
@@ -195,7 +201,14 @@ public class USBIso {
                 return req;
             }
         }
-        return new Request();
+        return allocateRequest();
+    }
+
+    private Request allocateRequest() {
+        Request request = new Request();
+        request.setUserContext(requests.size());
+        requests.add(request);
+        return request;
     }
 
 //--- Static parts -------------------------------------------------------------
@@ -228,7 +241,7 @@ public class USBIso {
             throw new IOException("URB.userContext returned by ioctl(USBDEVFS_REAPURB*) is out of range.");
         }
         Request req = requests.get(urbNdx);
-        if (! req.getUrb().getNativeUrbAddr().equals(urbPointer.getValue())) {
+        if (! req.getNativeUrbAddr().equals(urbPointer.getValue())) {
             throw new IOException("Address of URB returned by ioctl(USBDEVFS_REAPURB*) does not match.");
         }
         if (!req.queued) {
@@ -280,53 +293,41 @@ public class USBIso {
      *      ... For output: Set packet data to be sent to device ...
      *      Request.submit()</pre>
      */
-    public class Request {
+    public class Request extends Urb {
         private boolean initialized;
         private boolean queued;
-        private Urb urb;
         private Memory buffer;
-        private int endpointAddr;
 
         private Request() {
-            urb = new Urb(maxPacketsPerRequest);
+            super(maxPacketsPerRequest);
             int bufSize = maxPacketsPerRequest * maxPacketSize;
             buffer = new Memory(bufSize);
-            urb.setUserContext(requests.size());
-            requests.add(this);
-        }
-
-        public Urb getUrb() {
-            return urb;
         }
 
         /**
          * Initializes this <code>Request</code> object for the next {@link #submit}.
          * For input, an initialized <code>Request</code> object can usually be submitted without change.
          * For output, data has to be copied into the packet data buffers before the <code>Request</code> object is submitted.
-         *
-         * @param endpointAddr The address of an isochronous USB endpoint.
-         *                     For Android, this is the value returned by <code>UsbEndpoint.getAddress()</code>.
          */
-        public void initialize(byte endpointAddr) {
+        public void initialize() {
             if (queued) {
                 throw new IllegalStateException();
             }
-            this.endpointAddr = endpointAddr;
-            urb.setEndpoint(endpointAddr);
-            urb.setType(USBDEVFS_URB_TYPE.ISO.getValue());
-            urb.setFlags(USBDEVFS_URB_FLAG.ISO_ASAP.getValue());
-            urb.setBuffer(buffer);
-            urb.setBufferLength((int) buffer.size());
-            urb.setActualLength(0);
-            urb.setStartFrame(0);
-            setPacketCount(maxPacketsPerRequest);
-            urb.setErrorCount(0);
-            urb.setSigNr(0);
-            urb.setStatus(-1);
+            setEndpoint(endpointAddress);
+            setType(USBDEVFS_URB_TYPE.ISO.getValue());
+            setFlags(USBDEVFS_URB_FLAG.ISO_ASAP.getValue());
+            setBuffer(buffer);
+            setBufferLength((int) buffer.size());
+            setActualLength(0);
+            setStartFrame(0);
+            setNumberOfPackets(maxPacketsPerRequest);
+            setErrorCount(0);
+            setSigNr(0);
+            setStatus(-1);
             for (int packetNo = 0; packetNo < maxPacketsPerRequest; packetNo++) {
-                urb.setPacketLength(packetNo, maxPacketSize);
-                urb.setPacketActualLength(packetNo, 0);
-                urb.setPacketStatus(packetNo, -1);
+                setPacketLength(packetNo, maxPacketSize);
+                setPacketActualLength(packetNo, 0);
+                setPacketStatus(packetNo, -1);
             }
             initialized = true;
         }
@@ -344,7 +345,7 @@ public class USBIso {
             // System.out.println("vor IOCTL Submit URBAdresse = " + urb.getNativeUrbAddr());
            // urbAddr = urb.getNativeUrbAddr();
             //System.out.println("nach native get URBAdresse = " +urbAddr);
-            int rc = (Libc.INSTANCE).ioctl(fileDescriptor, USBDEVFS_SUBMITURB, urb.getNativeUrbAddr());
+            int rc = (Libc.INSTANCE).ioctl(fileDescriptor, USBDEVFS_SUBMITURB, getNativeUrbAddr());
 
             //int rc = nativeIOCTLsenden(fileDescriptor, USBDEVFS_SUBMITURB);
             //System.out.println("nach URBAdresse = " +urbAddr);
@@ -362,7 +363,7 @@ public class USBIso {
         public void cancel() throws IOException {
             int rc;
             try {
-                rc = (Libc.INSTANCE).ioctl(fileDescriptor, USBDEVFS_DISCARDURB, urb.getNativeUrbAddr());
+                rc = (Libc.INSTANCE).ioctl(fileDescriptor, USBDEVFS_DISCARDURB, getNativeUrbAddr());
             } catch (LastErrorException e) {
                 if (e.getErrorCode() == EINVAL) {                 // This happens if the request has already completed.
                     return;
@@ -375,64 +376,27 @@ public class USBIso {
         }
 
         /**
-         * Returns the Status of this request.
-         */
-
-
-        public int getUrbStaus() {
-            return urb.getStatus();
-        }
-
-        /**
-         * Returns the endpoint address associated with this request.
-         */
-        public int getEndpointAddr() {
-            return endpointAddr;
-        }
-
-        /**
-         * Returns the packet count of this request.
-         */
-        public int getPacketCount() {
-            return urb.getNumberOfPackets();
-        }
-
-        /**
          * May be used to modify the packet count.
          * The default packet count is <code>maxPacketsPerRequest</code> (see <code>UsbIso</code> constructor).
          */
-        public void setPacketCount(int n) {
+        @Override
+        public void setNumberOfPackets(int n) {
             if (n < 1 || n > maxPacketsPerRequest) {
                 throw new IllegalArgumentException();
             }
-            urb.setNumberOfPackets(n);
-        }
-
-        /**
-         * Returns the completion status code of a packet.
-         * For normal completion the status is 0.
-         */
-        public int getPacketStatus(int packetNo) {
-            return urb.getPacketStatus(packetNo);
+            super.setNumberOfPackets(n);
         }
 
         /**
          * May be used to modify the length of data to request for the packet.
          * The default packet length is <code>maxPacketSize</code> (see <code>UsbIso</code> constructor).
          */
+        @Override
         public void setPacketLength(int packetNo, int length) {
             if (length < 0 || length > maxPacketSize) {
                 throw new IllegalArgumentException();
             }
-            urb.setPacketLength(packetNo, length);
-        }
-
-        /**
-         * Returns the amount of data that was actually transferred for the packet.
-         * When reading, this is the number of data bytes received from the device.
-         */
-        public int getPacketActualLength(int packetNo) {
-            return urb.getPacketActualLength(packetNo);
+            super.setPacketLength(packetNo, length);
         }
 
         /**

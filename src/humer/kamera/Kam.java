@@ -27,67 +27,67 @@ import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+@SuppressWarnings("UseOfSystemOutOrSystemErr")
 public class Kam extends javax.swing.JFrame {
     // REQUIRED CONFIGURATION
     private static final int BUS = 1;
     private static final int DEVICE = 5;
     private static final int ALT_SETTING = 6; // 7 = 3*1024 bytes packet size // 6 = 3*896 // 5 = 2*1024 // 4 = 2*768 // 3 = 1x 1024 // 2 = 1x 512 // 1 = 128 //
     // ADDITIONAL CONFIGURATION
-    private static final String dumpFile = "target/test.dump";
-    private static final int camStreamingInterfaceNum = 1;
-    private static final int camControlInterfaceNum = 0;
-    private static final int endpunktadresse = 0x81;
-    private static final int camFormatIndex = 1;   // MJPEG // YUV // bFormatIndex: 1 = uncompressed
-    private static final int camFrameIndex = 1; // bFrameIndex: 1 = 640 x 360;       2 = 176 x 144;     3 =    320 x 240;      4 = 352 x 288;     5 = 640 x 480;
-    private static final int camFrameInterval = 333333; // 333333 YUV = 30 fps // 666666 YUV = 15 fps
-    private static final int packetsPerRequest = 8;
-    private static final int maxPacketSize = 3072;
-    private static final int activeUrbs = 16;
+    private static final String DUMP_FILE = "target/test.dump";
+    private static final int CAM_STREAMING_INTERFACE_NUM = 1;
+    private static final int CAM_CONTROL_INTERFACE_NUM = 0;
+    private static final byte ENDPOINT_ADDRESS = (byte) 0x81;
+    private static final int CAM_FORMAT_INDEX = 1;   // MJPEG // YUV // bFormatIndex: 1 = uncompressed
+    private static final int CAM_FRAME_INDEX = 1; // bFrameIndex: 1 = 640 x 360;       2 = 176 x 144;     3 =    320 x 240;      4 = 352 x 288;     5 = 640 x 480;
+    private static final int CAM_FRAME_INTERVAL = 333333; // 333333 YUV = 30 fps // 666666 YUV = 15 fps
+    private static final int PACKETS_PER_REQUEST = 8;
+    private static final int MAX_PACKET_SIZE = 3072;
+    private static final int ACTIVE_URBS = 16;
 
-    private static final String devicePath = String.format("/dev/bus/usb/%03d/%03d", BUS, DEVICE);
+    private static final String DEVICE_PATH = String.format("/dev/bus/usb/%03d/%03d", BUS, DEVICE);
 
     private volatile IsochronousRead1 runningTransfer;
-    private USBIso usbIso;
+
     private int fd;
 
     public void usbIsoLinux() throws IOException {
-        fd = Libc.INSTANCE.open(devicePath, Libc.O_RDWR);
-        usbIso = new USBIso(fd, packetsPerRequest, maxPacketSize);
+        fd = Libc.INSTANCE.open(DEVICE_PATH, Libc.O_RDWR);
         usbdevfs_getdriver getdrv = new usbdevfs_getdriver();
         usbdevfs_ioctl command = new usbdevfs_ioctl();
         for(int i= 0; i < 2; i++) {
             getdrv.ifno = i;
             try {
                 Libc.INSTANCE.ioctl(fd, USBDEVFS_GETDRIVER, getdrv);
-                System.out.printf("Interface %d of %s was connected to: %s%n", i, devicePath, Native.toString(getdrv.driver));
+                System.out.printf("Interface %d of %s was connected to: %s%n", i, DEVICE_PATH, Native.toString(getdrv.driver));
                 command.ifno = i;
                 command.ioctl_code = USBDEVFS_DISCONNECT;
                 command.data = null;
                 try {
                     Libc.INSTANCE.ioctl(fd, USBDEVFS_IOCTL, command);
-                    System.out.printf("Successfully unlinked kerndriver from Interface %d of %s%n", i, devicePath);
+                    System.out.printf("Successfully unlinked kerndriver from Interface %d of %s%n", i, DEVICE_PATH);
                 } catch (LastErrorException ex) {
-                    System.out.printf("Failed to unlink kernel driver from Interface %d of %s: %s%n", i, devicePath, ex.getMessage());
+                    System.out.printf("Failed to unlink kernel driver from Interface %d of %s: %s%n", i, DEVICE_PATH, ex.getMessage());
                 }
             } catch (LastErrorException ex) {
-                System.out.printf("Failed to retrieve driver for Interface %d of %s: %s%n", i, devicePath, ex.getMessage());
+                System.out.printf("Failed to retrieve driver for Interface %d of %s: %s%n", i, DEVICE_PATH, ex.getMessage());
             }
             try {
                 Libc.INSTANCE.ioctl(fd, USBDEVFS_CLAIMINTERFACE, new IntByReference(i));
-                System.out.printf("Successfully claimed Interface %d of %s%n", i, devicePath);
+                System.out.printf("Successfully claimed Interface %d of %s%n", i, DEVICE_PATH);
             } catch (LastErrorException ex) {
-                System.out.printf("Failed to claim Interface %d of %s: %s%n", i, devicePath, ex.getMessage());
+                System.out.printf("Failed to claim Interface %d of %s: %s%n", i, DEVICE_PATH, ex.getMessage());
             }
-            usbdevice_fs_util.setInterface(fd, camStreamingInterfaceNum, 0);
+            usbdevice_fs_util.setInterface(fd, CAM_STREAMING_INTERFACE_NUM, 0);
             ioctlControltransfer();
-            usbdevice_fs_util.setInterface(fd, camStreamingInterfaceNum, ALT_SETTING);
+            usbdevice_fs_util.setInterface(fd, CAM_STREAMING_INTERFACE_NUM, ALT_SETTING);
         }
     }
 
     public void kameraSchliessen() throws IOException {
-        usbdevice_fs_util.setInterface(fd, camStreamingInterfaceNum, 0);
-        for(int if_num = 0; if_num <= camStreamingInterfaceNum; if_num++) {
-            int ret = Libc.INSTANCE.ioctl(fd, USBDEVFS_RELEASEINTERFACE, new IntByReference(if_num));
+        usbdevice_fs_util.setInterface(fd, CAM_STREAMING_INTERFACE_NUM, 0);
+        for(int if_num = 0; if_num <= CAM_STREAMING_INTERFACE_NUM; if_num++) {
+            Libc.INSTANCE.ioctl(fd, USBDEVFS_RELEASEINTERFACE, new IntByReference(if_num));
         }
         Libc.INSTANCE.close(fd);
     }
@@ -97,15 +97,15 @@ public class Kam extends javax.swing.JFrame {
         buffer.clear();
         buffer.setByte(0, (byte) 0x01); // what fields shall be kept fixed (0x01: dwFrameInterval)
         buffer.setByte(1, (byte) 0x00); //
-        buffer.setByte(2, (byte) camFormatIndex); // video format index
-        buffer.setByte(3, (byte) camFrameIndex);  // video frame index // bFrameIndex: 1 = 640 x 360;       2 = 176 x 144;     3 =    320 x 240;      4 = 352 x 288;     5 = 640 x 480;
-        buffer.setByte(4, (byte) (camFrameInterval & 0xFF));
-        buffer.setByte(5, (byte) ((camFrameInterval >> 8) & 0xFF));
-        buffer.setByte(6, (byte) ((camFrameInterval >> 16) & 0xFF));
-        buffer.setByte(7, (byte) ((camFrameInterval >> 24) & 0xFF));
+        buffer.setByte(2, (byte) CAM_FORMAT_INDEX); // video format index
+        buffer.setByte(3, (byte) CAM_FRAME_INDEX);  // video frame index // bFrameIndex: 1 = 640 x 360;       2 = 176 x 144;     3 =    320 x 240;      4 = 352 x 288;     5 = 640 x 480;
+        buffer.setByte(4, (byte) (CAM_FRAME_INTERVAL & 0xFF));
+        buffer.setByte(5, (byte) ((CAM_FRAME_INTERVAL >> 8) & 0xFF));
+        buffer.setByte(6, (byte) ((CAM_FRAME_INTERVAL >> 16) & 0xFF));
+        buffer.setByte(7, (byte) ((CAM_FRAME_INTERVAL >> 24) & 0xFF));
         usbdevfs_ctrltransfer ctrl = new usbdevfs_ctrltransfer();
         ctrl.wValue = USBIso.VS_PROBE_CONTROL << 8;
-        ctrl.wIndex = camStreamingInterfaceNum;
+        ctrl.wIndex = CAM_STREAMING_INTERFACE_NUM;
         ctrl.wLength = (short) buffer.size();
         ctrl.timeout = 2000; // USB should t/o after 5 seconds.
         ctrl.data = buffer;
@@ -164,7 +164,7 @@ public class Kam extends javax.swing.JFrame {
                 try(InputStream is = Kam.class.getResourceAsStream("/README.md")) {
                     ByteArrayOutputStream baos = new ByteArrayOutputStream();
                     byte[] buffer = new byte[512 * 1024];
-                    int read = 0;
+                    int read;
                     while((read = is.read(buffer)) > 0) {
                         baos.write(buffer, 0, read);
                     }
@@ -244,8 +244,6 @@ public class Kam extends javax.swing.JFrame {
             Logger.getLogger(Kam.class.getName()).log(Level.SEVERE, null, ex);
         }
 
-        usbIso.preallocateRequests(activeUrbs);
-
         runningTransfer = new IsochronousRead1();
         runningTransfer.start();
     }
@@ -266,23 +264,15 @@ public class Kam extends javax.swing.JFrame {
                     break;
                 }
             }
-        } catch (ClassNotFoundException ex) {
-            java.util.logging.Logger.getLogger(Kam.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (InstantiationException ex) {
-            java.util.logging.Logger.getLogger(Kam.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (IllegalAccessException ex) {
-            java.util.logging.Logger.getLogger(Kam.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (javax.swing.UnsupportedLookAndFeelException ex) {
+        } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | javax.swing.UnsupportedLookAndFeelException ex) {
             java.util.logging.Logger.getLogger(Kam.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         }
         //</editor-fold>
 
+        //</editor-fold>
+
         /* Create and display the form */
-        java.awt.EventQueue.invokeLater(new Runnable() {
-            public void run() {
-                new Kam().setVisible(true);
-            }
-        });
+        java.awt.EventQueue.invokeLater(() -> new Kam().setVisible(true));
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
@@ -300,51 +290,32 @@ public class Kam extends javax.swing.JFrame {
             if (v < 16) {
                 s.append('0'); }
             s.append(Integer.toHexString(v)); }
-        return s.toString(); }
-    
-      
-   private void submitActiveUrbs() throws IOException {
-      // /*
-        long time0 = System.currentTimeMillis();
-        for (int i = 0; i < activeUrbs; i++) {
-            USBIso.Request req = usbIso.getRequest();
-            //EndpunktAdresse = (int) 129;
-            //System.out.println("Endpunktadresse vor = " +String.format("0x%02X", (int)EndpunktAdresse));
-            //System.out.println("Endpunktadresse in int = " + EndpunktAdresse2);
-            req.initialize((byte) 0x81);
-            req.submit();
-            
-            //System.out.println("Endpunktadresse nach submit urb = " +String.format("0x%02X", (int)EndpunktAdresse));
-        }
-        System.out.println("Verschrittene Zeit bei der Urbübermittlung: " + (System.currentTimeMillis() - time0) + " ms.");
-    // */
-    //usbIso.submitUsbdevfs_urb(8,1);
-   }
+        return s.toString();
+    }
 
-    public void videoParameter (byte[] p) {
-        StringBuilder s = new StringBuilder(128);
-        s.append("hint=0x" + Integer.toHexString(unpackUsbUInt2(p, 0)));
-        s.append(" format=" + (p[2] & 0xf));
-        s.append(" frame=" + (p[3] & 0xf));
-        s.append(" frameInterval=" + unpackUsbInt(p, 4));
-        s.append(" keyFrameRate=" + unpackUsbUInt2(p, 8));
-        s.append(" pFrameRate=" + unpackUsbUInt2(p, 10));
-        s.append(" compQuality=" + unpackUsbUInt2(p, 12));
-        s.append(" compWindowSize=" + unpackUsbUInt2(p, 14));
-        s.append(" delay=" + unpackUsbUInt2(p, 16));
-        s.append(" maxVideoFrameSize=" + unpackUsbInt(p, 18));
-        s.append(" maxPayloadTransferSize=" + unpackUsbInt(p, 22));
-        System.out.println( s.toString());
-    }   
+
+    public void videoParameter(byte[] p) {
+        String s = "hint=0x" + Integer.toHexString(unpackUsbUInt2(p, 0))
+                + " format=" + (p[2] & 0xf)
+                + " frame=" + (p[3] & 0xf)
+                + " frameInterval=" + unpackUsbInt(p, 4)
+                + " keyFrameRate=" + unpackUsbUInt2(p, 8)
+                + " pFrameRate=" + unpackUsbUInt2(p, 10)
+                + " compQuality=" + unpackUsbUInt2(p, 12)
+                + " compWindowSize=" + unpackUsbUInt2(p, 14)
+                + " delay=" + unpackUsbUInt2(p, 16)
+                + " maxVideoFrameSize=" + unpackUsbInt(p, 18)
+                + " maxPayloadTransferSize=" + unpackUsbInt(p, 22);
+        System.out.println(s);
+    }
     
-        private String dumpStillImageParms (byte[] p) {
-        StringBuilder s = new StringBuilder(128);
-        s.append("bFormatIndex=" + (p[0] & 0xff));
-        s.append(" bFrameIndex=" + (p[1] & 0xff));
-        s.append(" bCompressionIndex=" + (p[2] & 0xff));
-        s.append(" maxVideoFrameSize=" + unpackUsbInt(p, 3));
-        s.append(" maxPayloadTransferSize=" + unpackUsbInt(p, 7));
-        return s.toString(); 
+    private String dumpStillImageParms(byte[] p) {
+        String s = "bFormatIndex=" + (p[0] & 0xff)
+                + " bFrameIndex=" + (p[1] & 0xff)
+                + " bCompressionIndex=" + (p[2] & 0xff)
+                + " maxVideoFrameSize=" + unpackUsbInt(p, 3)
+                + " maxPayloadTransferSize=" + unpackUsbInt(p, 7);
+        return s;
     }
         
     private static int unpackUsbInt (byte[] buf, int pos) {
@@ -387,8 +358,11 @@ public class Kam extends javax.swing.JFrame {
             setPriority(Thread.MAX_PRIORITY);
         }
 
+        @Override
         public void run() {
-            File dump = new File(dumpFile).getAbsoluteFile();
+            USBIso usbIso = new USBIso(fd, PACKETS_PER_REQUEST, MAX_PACKET_SIZE, ENDPOINT_ADDRESS);
+            usbIso.preallocateRequests(ACTIVE_URBS);
+            File dump = new File(DUMP_FILE).getAbsoluteFile();
             dump.getParentFile().mkdirs();
             try (FileOutputStream fos = new FileOutputStream(dump)) {
                 //Thread.sleep(500);
@@ -403,17 +377,17 @@ public class Kam extends javax.swing.JFrame {
                 long time0 = System.currentTimeMillis();
                 int frameLen = 0;
                 int requestCnt = 0;
-                byte[] data = new byte[maxPacketSize];
+                byte[] data = new byte[MAX_PACKET_SIZE];
                 try {
                     //enableStreaming(true);
-                    submitActiveUrbs();
+                    usbIso.submitUrbs();
                 } catch (IOException ex) {
                     Logger.getLogger(Kam.class.getName()).log(Level.SEVERE, null, ex);
                 }
                 while (System.currentTimeMillis() - time0 < 3000) {
                     boolean stopReq = false;
                     USBIso.Request req = usbIso.reapRequest(true);
-                    for (int packetNo = 0; packetNo < req.getPacketCount(); packetNo++) {
+                    for (int packetNo = 0; packetNo < req.getNumberOfPackets(); packetNo++) {
                         packetCnt++;
                         int packetLen = req.getPacketActualLength(packetNo);
                         if (packetLen == 0) {
@@ -433,7 +407,7 @@ public class Kam extends javax.swing.JFrame {
                             break;
                         }
                         if (packetLen > 0) {
-                            if (packetLen > maxPacketSize) {
+                            if (packetLen > MAX_PACKET_SIZE) {
                                 //throw new Exception("packetLen > maxPacketSize");
                             }
                             req.getPacketData(packetNo, data, packetLen);
@@ -474,7 +448,7 @@ public class Kam extends javax.swing.JFrame {
                         break;
                     }
                     requestCnt++;
-                    req.initialize((byte) 0x81);
+                    req.initialize();
                     req.submit();
 
                 }
