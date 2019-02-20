@@ -73,11 +73,11 @@ public class Kam extends javax.swing.JFrame {
             }
             
         }
-        
+        usbIso.setInterface(camStreamingInterfaceNum, 0);
+        ioctlControltransfer();
+        usbIso.setInterface(camStreamingInterfaceNum, ALT_SETTING);
     }
-    usbIso.setInterface(camStreamingInterfaceNum, 0);
-    ioctlControltransfer();
-    usbIso.setInterface(camStreamingInterfaceNum, ALT_SETTING);
+    
     
 
     public void kameraSchliessen() throws IOException {
