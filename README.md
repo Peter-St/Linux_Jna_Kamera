@@ -19,7 +19,7 @@ Explaination: (To know how the program works)
 Adjust the settings in Kam.java, headed by "REQUIRED CONFIGURATION". Use the
 values gathered from lsusb.
 
-3) This step is, when you press the Kamera button in the program
+3) This step is, when you press in the menu "Isoread" the button "IsoRead1"
 
 Take a look at the camera frames you receive with your settings on STDOUT. To
 know how big be a Frame should be, you can look at the output of the controll
@@ -46,10 +46,17 @@ vlc --demux rawvideo --rawvid-fps 15 --rawvid-width 640 --rawvid-height 480 --ra
 
 ```
 
+4) To Display the Frames directly in an JPanel you can press the Kamera Button:
+
+-  Note: 2 Camera formats are supported now: uncompressed YUY2 and MJPEG
+-  you have to do the setting for the camera in the menu "AutoFind / Edit / Open / Save".
+-  To search the camera automatically, you can press the button: "Automatic search a camera" (it uses usb4Java)
+-  To edit the camera setting use the menu: "Edit / Save" --> you can save the settings to a file and restore them later under the menupoint "Restore Camera Settings".
+-  Check it out.
 ---------------------------------
 
 
-Program output:
+Program output of the Isoread1 Button:
 
 Output from the control transfer:
 - Initial streaming parms: hint=0x0 format=1 frame=1 frameInterval=2000000 keyFrameRate=0 pFrameRate=0 compQuality=0 compWindowSize=0 delay=0 maxVideoFrameSize=0 maxPayloadTransferSize=0
