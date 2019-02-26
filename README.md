@@ -5,7 +5,7 @@ Camera stream over Jna.
 
 Still Under Development !
 
-Explaination: (To know how the program works)
+Explaination: (To know how the program works) (You can make all the main changes in the file: Kam.java)
 
 1)  Read out the camera specifications with the terminal command:
   
@@ -52,7 +52,7 @@ vlc --demux rawvideo --rawvid-fps 15 --rawvid-width 640 --rawvid-height 480 --ra
 -  you have to do the setting for the camera in the menu "AutoFind / Edit / Open / Save".
 -  To search the camera automatically, you can press the button: "Automatic search a camera" (it uses usb4Java)
 -  To edit the camera setting use the menu: "Edit / Save" --> you can save the settings to a file and restore them later under the menupoint "Restore Camera Settings".
--  Check it out.
+-  To add additional formats for your camera, you can make changes to the "ConvertStream.java" file. Here it is possible to add more methods for your camera format. JavaCV is used to encode the Frame from uncompressed to Jpg. Check out the convertions on the JavaCV HP or search in the net for examples. JavaCV is close to OpenCV.
 ---------------------------------
 
 
