@@ -52,7 +52,7 @@ public class SaveToFile {
     
     public int sbus;
     public int sdevice;
-    public int sendpunktadresse;
+    public byte sendpunktadresse;
     public String sdevicePath;
     
     public int sALT_SETTING;
@@ -65,8 +65,7 @@ public class SaveToFile {
     public int smaxPacketSize ;
     public int sactiveUrbs ;
     public int svideoformat;
-    private String saveFilePath = "/home/peter/Kamera/saveFile.sav";
-    private String rootPath = "/home/peter/Kamera/";
+    private static String saveFilePath = "save/saveFile.sav";
     
     private Kam kam;
     public JLabel video;
@@ -90,37 +89,37 @@ public class SaveToFile {
     
     private void fetchTheValues(){
         
-        sbus = kam.bus;
-        sdevice = kam.device;
-        sendpunktadresse = kam.endpunktadresse;
-        sdevicePath = kam.devicePath;
+        sbus = kam.BUS;
+        sdevice = kam.DEVICE;
+        sendpunktadresse = kam.ENDPOINT_ADDRESS;
+        sdevicePath = kam.DEVICE_PATH;
         sALT_SETTING = kam.ALT_SETTING;
         svideoformat = kam.videoformat;
-        scamFormatIndex = kam.camFormatIndex;
+        scamFormatIndex = kam.CAM_FORMAT_INDEX;
         simageWidth = kam.imageWidth;
         simageHeight = kam.imageHeight;
-        scamFrameIndex = kam.camFrameIndex;
-        scamFrameInterval = kam.camFrameInterval;
-        spacketsPerRequest = kam.packetsPerRequest;
-        smaxPacketSize = kam.maxPacketSize;
-        sactiveUrbs = kam.activeUrbs;
+        scamFrameIndex = kam.CAM_FRAME_INDEX;
+        scamFrameInterval = kam.CAM_FRAME_INTERVAL;
+        spacketsPerRequest = kam.PACKETS_PER_REQUEST;
+        smaxPacketSize = kam.MAX_PACKET_SIZE;
+        sactiveUrbs = kam.ACTIVE_URBS;
     }
     
     private void writeTheValues(){
         
-        kam.bus = sbus;
-        kam.device = sdevice;
-        kam.endpunktadresse = sendpunktadresse;
-        kam.devicePath = sdevicePath;
+        kam.BUS = sbus;
+        kam.DEVICE = sdevice;
+        kam.ENDPOINT_ADDRESS = sendpunktadresse;
+        kam.DEVICE_PATH = sdevicePath;
         kam.ALT_SETTING = sALT_SETTING;
-        kam.camFormatIndex = scamFormatIndex;
+        kam.CAM_FORMAT_INDEX = scamFormatIndex;
         kam.imageWidth = simageWidth;
         kam.imageHeight = simageHeight;
-        kam.camFrameIndex = scamFrameIndex;
-        kam.camFrameInterval = scamFrameInterval;
-        kam.packetsPerRequest = spacketsPerRequest;
-        kam.maxPacketSize = smaxPacketSize;
-        kam.activeUrbs = sactiveUrbs;
+        kam.CAM_FRAME_INDEX = scamFrameIndex;
+        kam.CAM_FRAME_INTERVAL = scamFrameInterval;
+        kam.PACKETS_PER_REQUEST = spacketsPerRequest;
+        kam.MAX_PACKET_SIZE = smaxPacketSize;
+        kam.ACTIVE_URBS = sactiveUrbs;
         
     }
     
@@ -132,14 +131,21 @@ public class SaveToFile {
         String name;
         paths = new ArrayList<>(50);
         StringBuilder stringBuilder = new StringBuilder();
-        
+        /*
         Object[] options = {"Use the standard path", "Select new filepath"};
         option = JOptionPane.showOptionDialog(null, "Would you like to use the standard filepath?","Filepath ...", JOptionPane.YES_NO_OPTION,JOptionPane.QUESTION_MESSAGE,null,options , options[0]);
         if (option != JOptionPane.OK_OPTION){
             name = JOptionPane.showInputDialog("Please type in the Path:   (Example:    /home/user/camera/  )");
             rootPath = name;
         }
-        recursiveFind(Paths.get(rootPath), System.out::println);
+        */
+        File s = new File(saveFilePath).getAbsoluteFile();
+                s.getParentFile().mkdirs();
+                String filePath = s.getParent();
+                filePath += "/";
+                
+                
+        recursiveFind(Paths.get(filePath), System.out::println);
         //recursiveFind(Paths.get(rootPath), p -> {if (p.toFile().getName().toString().equals("src")) { System.out.println(p); }});
         for (int i = 0; i < paths.size(); i++) {
             stringBuilder.append(String.format("%d   ->   ", (i+1)));
@@ -152,7 +158,7 @@ public class SaveToFile {
             if (isInteger(name) == true) { 
                 try { restorFromFile(paths.get((Integer.parseInt(name) - 1))); }
                 catch (Exception e) { Logger.getLogger(Kam.class.getName()).log(Level.SEVERE, null, e); JOptionPane.showMessageDialog(null, "Error restoring the file","Error while restoring the file", JOptionPane.ERROR_MESSAGE);}   
-            } else {restorFromFile((rootPath += name += ".sav"));      JOptionPane.showMessageDialog(null, "save complete","Save Complete", JOptionPane.INFORMATION_MESSAGE);}
+            } else {restorFromFile((filePath += name += ".sav"));      JOptionPane.showMessageDialog(null, "save complete","Save Complete", JOptionPane.INFORMATION_MESSAGE);}
         }
         
         System.out.println("Restore completed");
@@ -218,14 +224,22 @@ public class SaveToFile {
             option = JOptionPane.showOptionDialog(null, "Would you like to save the settings to a file?" ,"Save the Settings ?", JOptionPane.YES_NO_OPTION,JOptionPane.QUESTION_MESSAGE,null,options , options[0]);
             if (option == JOptionPane.OK_OPTION) {
                 String name;
+                /*
                 Object[] options2 = {"Use the standard path", "Select new filepath"};
                 option = JOptionPane.showOptionDialog(null, String.format("Would you like to use the standard filepath?\nThe Filepath is:   %s" , rootPath ),"Filepath ...", JOptionPane.YES_NO_OPTION,JOptionPane.QUESTION_MESSAGE,null,options2 , options2[0]);
                 if (option != JOptionPane.OK_OPTION){
                     name = JOptionPane.showInputDialog("Please type in the Path:   (Example:    /home/user/camera/  )");
                     rootPath = name;
                 }
+                */
                 paths = new ArrayList<>(50);
-                recursiveFind(Paths.get(rootPath), System.out::println);
+                
+                File s = new File(saveFilePath).getAbsoluteFile();
+                s.getParentFile().mkdirs();
+                String filePath = s.getParent();
+                filePath += "/";
+                
+                recursiveFind(Paths.get(s.getParent()), System.out::println);
                 //recursiveFind(Paths.get(rootPath), p -> {if (p.toFile().getName().toString().equals("src")) { System.out.println(p); }});
                 System.out.println("Anzahl der Dateien: " + paths.size() + "\n");
                 for (int i = 0; i < paths.size(); i++) {
@@ -237,6 +251,7 @@ public class SaveToFile {
                     stringBuilder.append(paths.get(i));
                     stringBuilder.append("\n");
                 }
+                s = null;
                 
                 name = JOptionPane.showInputDialog(String.format("Please type the name of the savefile.\n   Following Files were stored in the directory:\n \n%s\n\n To select the First File Type in 1, or for the secound File 2\nOr Type in a name (without the Directory) (for example: camera)" , stringBuilder.toString() ));
                 if (name == null) JOptionPane.showMessageDialog(null, "save canceld","Save canceld", JOptionPane.INFORMATION_MESSAGE);
@@ -244,18 +259,23 @@ public class SaveToFile {
                     if (isInteger(name) == true) { 
                         try { saveValueToFile(paths.get((Integer.parseInt(name)) - 1)); }
                         catch (Exception e) { Logger.getLogger(Kam.class.getName()).log(Level.SEVERE, null, e); JOptionPane.showMessageDialog(null, "Error saving the file","Error while saving the file", JOptionPane.ERROR_MESSAGE);}   
-                    } else {saveValueToFile((rootPath += name += ".sav"));      JOptionPane.showMessageDialog(null, "save complete","Save Complete", JOptionPane.INFORMATION_MESSAGE);}
-                }
+                    } else {saveValueToFile(filePath  += name += ".sav");      }
+                } 
             }
         } else  System.out.println("Input canceled");
     } 
     
     private void saveValueToFile (String savePath) {
         
-        
+        System.out.println("savePath = " + savePath);
         try {  // Catch errors in I/O if necessary.
+            /*
+        File dump = new File(DUMP_FILE).getAbsoluteFile();
+        dump.getParentFile().mkdirs();
+        */
         
-        File file = new File(savePath);
+        File file = new File(savePath).getAbsoluteFile();
+        file.getParentFile().mkdirs();
         if (file.exists())  file.delete();
         
         FileOutputStream saveFile=new FileOutputStream(savePath);
@@ -277,23 +297,12 @@ public class SaveToFile {
             save.writeObject(smaxPacketSize);
             save.writeObject(sactiveUrbs);
             save.writeObject(saveFilePath);
-            save.writeObject(rootPath);
             
             // Close the file.
             save.close(); // This also closes saveFile.
         } catch (Exception e) { Logger.getLogger(Kam.class.getName()).log(Level.SEVERE, null, e);}
         
-        System.out.println("save bus = " + sbus);
-        System.out.println("save camFrameInterval  =  " + scamFrameInterval);
-        System.out.println("save imageHeight = " + simageHeight);
-        System.out.println("ALT_SETTING = " + sALT_SETTING);
-        System.out.println("camFormatIndex = " + scamFormatIndex);
-        System.out.println("camFrameIndex = " + scamFrameIndex);
-        System.out.println("camFrameInterval = " + scamFrameInterval);
-        System.out.println("imageWidth = " + simageWidth);
-        System.out.println("imageHeight = " + simageHeight);
-        System.out.println("devpath = " + sdevicePath);
-        System.out.println("videoformat = " + svideoformat);
+        JOptionPane.showMessageDialog(null, "save complete","Save Complete", JOptionPane.INFORMATION_MESSAGE);
     }
             
     
@@ -335,7 +344,7 @@ public class SaveToFile {
             ObjectInputStream save = new ObjectInputStream(saveFile);
             sbus = (Integer) save.readObject();
             sdevice = (Integer) save.readObject();
-            sendpunktadresse = (Integer) save.readObject();
+            sendpunktadresse = (Byte) save.readObject();
             sdevicePath = (String) save.readObject();
             sALT_SETTING = (Integer) save.readObject();
             svideoformat = (Integer) save.readObject();
@@ -348,7 +357,6 @@ public class SaveToFile {
             smaxPacketSize  = (Integer) save.readObject();
             sactiveUrbs  = (Integer) save.readObject();
             saveFilePath  = (String) save.readObject();
-            rootPath  = (String) save.readObject();
             save.close(); 
         }
         catch(Exception exc){
