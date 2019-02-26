@@ -270,8 +270,9 @@ public class Kam extends javax.swing.JFrame {
 
         jMenu1.setForeground(new java.awt.Color(159, 126, 25));
         jMenu1.setText("AutoFind / Edit / Open / Save");
+        jMenu1.setFont(new java.awt.Font("Noto Sans", 0, 14)); // NOI18N
 
-        AutoSearchTheCameras.setFont(new java.awt.Font("Dialog", 0, 12)); // NOI18N
+        AutoSearchTheCameras.setFont(new java.awt.Font("Dialog", 0, 14)); // NOI18N
         AutoSearchTheCameras.setForeground(new java.awt.Color(133, 85, 85));
         AutoSearchTheCameras.setText("Automatic search for a Camera");
         AutoSearchTheCameras.addActionListener(new java.awt.event.ActionListener() {
@@ -281,7 +282,7 @@ public class Kam extends javax.swing.JFrame {
         });
         jMenu1.add(AutoSearchTheCameras);
 
-        EditTheValues.setFont(new java.awt.Font("Dialog", 0, 12)); // NOI18N
+        EditTheValues.setFont(new java.awt.Font("Dialog", 0, 14)); // NOI18N
         EditTheValues.setForeground(new java.awt.Color(133, 85, 85));
         EditTheValues.setText("Edit / Save    - -> the camera values");
         EditTheValues.addActionListener(new java.awt.event.ActionListener() {
@@ -292,7 +293,7 @@ public class Kam extends javax.swing.JFrame {
         jMenu1.add(EditTheValues);
         jMenu1.add(jSeparator1);
 
-        RestoreValues.setFont(new java.awt.Font("Dialog", 0, 12)); // NOI18N
+        RestoreValues.setFont(new java.awt.Font("Dialog", 0, 14)); // NOI18N
         RestoreValues.setForeground(new java.awt.Color(133, 85, 85));
         RestoreValues.setText("Restore Camera Settings");
         RestoreValues.addActionListener(new java.awt.event.ActionListener() {
@@ -307,8 +308,9 @@ public class Kam extends javax.swing.JFrame {
 
         jMenu2.setForeground(new java.awt.Color(228, 28, 244));
         jMenu2.setText("Isoread");
+        jMenu2.setFont(new java.awt.Font("Noto Sans", 0, 14)); // NOI18N
 
-        Isoread1.setFont(new java.awt.Font("Dialog", 0, 12)); // NOI18N
+        Isoread1.setFont(new java.awt.Font("Dialog", 0, 14)); // NOI18N
         Isoread1.setText("Isoread1");
         Isoread1.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -336,7 +338,7 @@ public class Kam extends javax.swing.JFrame {
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
                 .addGap(12, 12, 12)
-                .addComponent(infoPanelScrollPane, javax.swing.GroupLayout.DEFAULT_SIZE, 222, Short.MAX_VALUE)
+                .addComponent(infoPanelScrollPane, javax.swing.GroupLayout.DEFAULT_SIZE, 218, Short.MAX_VALUE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(Kamera)
                 .addContainerGap())
