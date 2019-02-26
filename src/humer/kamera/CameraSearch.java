@@ -49,7 +49,8 @@ public class CameraSearch {
     private int camera;
     private String cameraDescripton;
     StringBuilder stringBuilder;
-    int BUS, DEVICE, endpunktadresse;
+    public int BUS, DEVICE;
+    public byte endpunktadresse;
     
     
     
