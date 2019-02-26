@@ -78,13 +78,11 @@ public class Kam extends javax.swing.JFrame {
             } catch (LastErrorException ex) {
                 System.out.printf("Failed to claim Interface %d of %s: %s%n", i, DEVICE_PATH, ex.getMessage());
             }
-            usbdevice_fs_util.setInterface(fd, CAM_STREAMING_INTERFACE_NUM, 0);
-            ioctlControltransfer();
-            usbdevice_fs_util.setInterface(fd, CAM_STREAMING_INTERFACE_NUM, ALT_SETTING);
+            
         }
-        usbIso.setInterface(camStreamingInterfaceNum, 0);
+        usbdevice_fs_util.setInterface(fd, CAM_STREAMING_INTERFACE_NUM, 0);
         ioctlControltransfer();
-        usbIso.setInterface(camStreamingInterfaceNum, ALT_SETTING);
+        usbdevice_fs_util.setInterface(fd, CAM_STREAMING_INTERFACE_NUM, ALT_SETTING);
     }
     
     
