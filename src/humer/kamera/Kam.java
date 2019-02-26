@@ -240,7 +240,6 @@ public class Kam extends javax.swing.JFrame {
         Kamera = new javax.swing.JButton();
         infoPanelScrollPane = new javax.swing.JScrollPane();
         infoPanel = new javax.swing.JTextPane();
-        StopTheCamera = new javax.swing.JButton();
         jMenuBar1 = new javax.swing.JMenuBar();
         jMenu1 = new javax.swing.JMenu();
         AutoSearchTheCameras = new javax.swing.JMenuItem();
@@ -268,13 +267,6 @@ public class Kam extends javax.swing.JFrame {
         infoPanel.setFont(new java.awt.Font("Monospaced", 0, 12)); // NOI18N
         infoPanel.setOpaque(false);
         infoPanelScrollPane.setViewportView(infoPanel);
-        
-        StopTheCamera.setText("Stop the camera");
-        StopTheCamera.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                StopTheCameraActionPerformed(evt);
-            }
-        });
 
         jMenu1.setForeground(new java.awt.Color(159, 126, 25));
         jMenu1.setText("AutoFind / Edit / Open / Save");
@@ -337,10 +329,7 @@ public class Kam extends javax.swing.JFrame {
                 .addContainerGap()
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(infoPanelScrollPane, javax.swing.GroupLayout.DEFAULT_SIZE, 466, Short.MAX_VALUE)
-                    .addGroup(layout.createSequentialGroup()
-                        .addComponent(Kamera, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(StopTheCamera)))
+                    .addComponent(Kamera, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addContainerGap())
         );
         layout.setVerticalGroup(
@@ -349,9 +338,7 @@ public class Kam extends javax.swing.JFrame {
                 .addGap(12, 12, 12)
                 .addComponent(infoPanelScrollPane, javax.swing.GroupLayout.DEFAULT_SIZE, 222, Short.MAX_VALUE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(Kamera)
-                    .addComponent(StopTheCamera))
+                .addComponent(Kamera)
                 .addContainerGap())
         );
 
@@ -396,10 +383,6 @@ public class Kam extends javax.swing.JFrame {
         infoPanel.setText(stringBuilder.toString());
         updateValues(OptionForInit.camerasearch);
     }//GEN-LAST:event_AutoSearchTheCamerasActionPerformed
-
-    private void StopTheCameraActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_StopTheCameraActionPerformed
-        this.stopKamera = true;
-    }//GEN-LAST:event_StopTheCameraActionPerformed
 
 
 
@@ -454,7 +437,6 @@ public class Kam extends javax.swing.JFrame {
     private javax.swing.JMenuItem Isoread1;
     private javax.swing.JButton Kamera;
     private javax.swing.JMenuItem RestoreValues;
-    private javax.swing.JButton StopTheCamera;
     public javax.swing.JTextPane infoPanel;
     private javax.swing.JScrollPane infoPanelScrollPane;
     private javax.swing.JButton jButton1;

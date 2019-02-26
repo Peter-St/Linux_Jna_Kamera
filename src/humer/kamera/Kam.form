@@ -122,11 +122,7 @@
               <EmptySpace max="-2" attributes="0"/>
               <Group type="103" groupAlignment="0" attributes="0">
                   <Component id="infoPanelScrollPane" pref="466" max="32767" attributes="0"/>
-                  <Group type="102" attributes="0">
-                      <Component id="Kamera" max="32767" attributes="0"/>
-                      <EmptySpace max="-2" attributes="0"/>
-                      <Component id="StopTheCamera" min="-2" max="-2" attributes="0"/>
-                  </Group>
+                  <Component id="Kamera" max="32767" attributes="0"/>
               </Group>
               <EmptySpace max="-2" attributes="0"/>
           </Group>
@@ -138,10 +134,7 @@
               <EmptySpace min="-2" pref="12" max="-2" attributes="0"/>
               <Component id="infoPanelScrollPane" pref="222" max="32767" attributes="0"/>
               <EmptySpace max="-2" attributes="0"/>
-              <Group type="103" groupAlignment="3" attributes="0">
-                  <Component id="Kamera" alignment="3" min="-2" max="-2" attributes="0"/>
-                  <Component id="StopTheCamera" alignment="3" min="-2" max="-2" attributes="0"/>
-              </Group>
+              <Component id="Kamera" min="-2" max="-2" attributes="0"/>
               <EmptySpace max="-2" attributes="0"/>
           </Group>
       </Group>
@@ -180,13 +173,5 @@
         </Component>
       </SubComponents>
     </Container>
-    <Component class="javax.swing.JButton" name="StopTheCamera">
-      <Properties>
-        <Property name="text" type="java.lang.String" value="Stop the camera"/>
-      </Properties>
-      <Events>
-        <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="StopTheCameraActionPerformed"/>
-      </Events>
-    </Component>
   </SubComponents>
 </Form>
