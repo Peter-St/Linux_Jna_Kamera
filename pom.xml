@@ -40,7 +40,7 @@
     <dependency>
       <groupId>net.java.dev.jna</groupId>
       <artifactId>jna</artifactId>
-      <version>4.5.2</version>
+      <version>5.2.0</version>
     </dependency>
   </dependencies>
 
@@ -60,6 +60,37 @@
               <version>2.4.3</version>
               <configuration>
                   <encoding>${project.build.sourceEncoding}</encoding>
+              </configuration>
+          </plugin>
+          <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-dependency-plugin</artifactId>
+              <version>3.1.1</version>
+              <executions>
+                  <execution>
+                      <id>copy-dependencies</id>
+                      <phase>package</phase>
+                      <goals>
+                          <goal>copy-dependencies</goal>
+                      </goals>
+                      <configuration>
+                          <includeScope>compile</includeScope>
+                      </configuration>
+                  </execution>
+              </executions>
+          </plugin>
+          <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-jar-plugin</artifactId>
+              <version>3.1.1</version>
+              <configuration>
+                  <archive>
+                      <manifest>
+                          <addClasspath>true</addClasspath>
+                          <classpathPrefix>dependency/</classpathPrefix>
+                          <mainClass>humer.kamera.Kam</mainClass>
+                      </manifest>
+                  </archive>
               </configuration>
           </plugin>
       </plugins>

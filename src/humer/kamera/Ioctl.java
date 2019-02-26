@@ -1,6 +1,36 @@
+/*
+ * Copyright (c) 2019, Matthias Bläsing
+ *
+ * The contents of this file is dual-licensed under 2
+ * alternative Open Source/Free licenses: LGPL 2.1 or later and
+ * Apache License 2.0.
+ *
+ * You can freely decide which license you want to apply to
+ * the project.
+ *
+ * You may obtain a copy of the LGPL License at:
+ *
+ * http://www.gnu.org/licenses/licenses.html
+ *
+ * A copy is also included in the downloadable source code package
+ * containing JNA, in file "LGPL2.1".
+ *
+ * You may obtain a copy of the Apache License at:
+ *
+ * http://www.apache.org/licenses/
+ *
+ * A copy is also included in the downloadable source code package
+ * containing JNA, in file "AL2.0".
+ */
+
 package humer.kamera;
 
+import com.sun.jna.Platform;
+
 public class Ioctl {
+
+    public Ioctl() {
+    }
 
     public static final int _IOC_NRBITS = 8;
     public static final int _IOC_TYPEBITS = 8;
@@ -23,19 +53,37 @@ public class Ioctl {
     public static final int _IOC_READ = get_IOC_READ();
 
     private static int get_IOC_SIZEBITS() {
-        return 14; // Default, depends on platform
+        if(Platform.isSPARC() || Platform.isPPC() || Platform.isMIPS()) {
+            return 13;
+        } else {
+            return 14; // Default, depends on platform
+        }
     }
 
     private static int get_IOC_DIRBITS() {
-        return 2;// Default, depends on platform
+        if(Platform.isSPARC() || Platform.isPPC() || Platform.isMIPS()) {
+            return 3;
+        } else {
+            return 2;// Default, depends on platform
+        }
     }
 
     private static int get_IOC_NONE() {
-        return 0;
+        if(Platform.isSPARC() || Platform.isPPC() || Platform.isMIPS()) {
+            return 1;
+        } else {
+            return 0;
+        }
     }
 
     private static int get_IOC_WRITE() {
-        return 1;
+        if(Platform.isSPARC()) {
+            return 3;
+        } else if (Platform.isPPC() || Platform.isMIPS()) {
+            return 4;
+        } else {
+            return 1;
+        }
     }
 
     private static int get_IOC_READ() {
