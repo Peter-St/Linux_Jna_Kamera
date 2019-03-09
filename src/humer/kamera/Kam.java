@@ -45,7 +45,7 @@ import javax.swing.JOptionPane;
 public class Kam extends javax.swing.JFrame {
     // REQUIRED CONFIGURATION
     public static  int BUS = 1;
-    public static  int DEVICE = 5;
+    public static  int DEVICE = 3;
     public static  int ALT_SETTING = 6; // 7 = 3*1024 bytes packet size // 6 = 3*896 // 5 = 2*1024 // 4 = 2*768 // 3 = 1x 1024 // 2 = 1x 512 // 1 = 128 //
     // ADDITIONAL CONFIGURATION
     private static final String DUMP_FILE = "target/test.dump";
@@ -80,7 +80,7 @@ public class Kam extends javax.swing.JFrame {
     private SaveToFile stf;
     private volatile boolean stopKamera = false;
     
-    private enum OptionForInit {savetofile, camerasearch }
+    private enum OptionForInit {savetofile, camerasearch, camerasearchUvc}
     private OptionForInit optionForInit;
 
     public void usbIsoLinux() throws IOException {
@@ -390,9 +390,10 @@ public class Kam extends javax.swing.JFrame {
             if (option == JOptionPane.OK_OPTION) {
                 stf = new SaveToFile();
                 stf.setUpWithUvcValues(cs);
-            }
-        }
-        updateValues(OptionForInit.camerasearch);
+                updateValues(OptionForInit.camerasearchUvc);
+            } else updateValues(OptionForInit.camerasearch);
+
+        } else updateValues(OptionForInit.camerasearch);
     }//GEN-LAST:event_AutoSearchTheCamerasActionPerformed
 
 
@@ -848,8 +849,16 @@ public class Kam extends javax.swing.JFrame {
                     ACTIVE_URBS = stf.sactiveUrbs;
                     System.out.printf("SaveToFile entries setted \n");
                 } else System.out.printf("SaveToFile = NULL ... using default entries .. \n");
-                
+                break;
             case camerasearch:
+                if (cs != null) {
+                    BUS = cs.BUS;
+                    DEVICE = cs.DEVICE;
+                    ENDPOINT_ADDRESS = cs.endpunktadresse;
+                    DEVICE_PATH = String.format("/dev/bus/usb/%03d/%03d", BUS, DEVICE);
+                } else System.out.printf("CameraSearch = NULL ... using default entries .. \n");
+                break;
+            case camerasearchUvc:
                 if (cs != null) {
                     BUS = cs.BUS;
                     DEVICE = cs.DEVICE;
@@ -866,7 +875,8 @@ public class Kam extends javax.swing.JFrame {
                     MAX_PACKET_SIZE = stf.smaxPacketSize;
                     ACTIVE_URBS = stf.sactiveUrbs;
                     System.out.printf("CameraSearch entries setted \n");
-                } else System.out.printf("CameraSearch = NULL ... using default entries .. \n");
+                } else System.out.printf("CameraSearchUVC = NULL ... using default entries .. \n");
+                break;
             default: break;
         }
         System.out.printf("CAM_FRAME_INDEX = " + CAM_FRAME_INDEX + "   /   devpath = " + DEVICE_PATH + "  /  camFrameInterval  = " + CAM_FRAME_INTERVAL + "  /  bus = " + BUS + "  /  imageWidth = " + imageWidth+ "  /  imageHeight = " + imageHeight);

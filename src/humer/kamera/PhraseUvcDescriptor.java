@@ -45,7 +45,8 @@ public class PhraseUvcDescriptor {
     
     
     public PhraseUvcDescriptor (ByteBuffer data) {
-        this.uvcData = data;
+        this.uvcData = ByteBuffer.allocate(data.limit());
+        this.uvcData = data.duplicate();
     }
     
     private static void printData (byte [] formatData) {
@@ -70,7 +71,7 @@ public class PhraseUvcDescriptor {
         int positionAbsolute = 0;
         int posStart, posEnd;
         do  {
-            uvcData.position(positionAbsolute);
+            
             int pos = uvcData.position();
             byte descSize = uvcData.get(pos);
             byte descType = uvcData.get(pos +1);
@@ -112,6 +113,7 @@ public class PhraseUvcDescriptor {
                 } 
             }
             positionAbsolute += descSize;
+            uvcData.position(positionAbsolute);
         } while (uvcData.limit() > positionAbsolute);
         System.out.println("UvcDescriptor finished.");
         return 0;
