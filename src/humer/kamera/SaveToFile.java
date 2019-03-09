@@ -41,6 +41,9 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import humer.kamera.Kam;
+import java.awt.Component;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.PrintWriter;
 
 
@@ -64,7 +67,7 @@ public class SaveToFile {
     public int spacketsPerRequest ;
     public int smaxPacketSize ;
     public int sactiveUrbs ;
-    public int svideoformat;
+    public String svideoformat;
     private static String saveFilePath = "save/saveFile.sav";
     
     private Kam kam;
@@ -74,8 +77,13 @@ public class SaveToFile {
     
     static ArrayList<String> paths = new ArrayList<>(50);
     private static ArrayList<String> saveValues = new ArrayList<>(20);
+    
+    
+    
+    
+    double emailvalue;
 
-    public void SaveToFile (){
+    public SaveToFile (){
         initKamClass();
     }
     
@@ -196,7 +204,7 @@ public class SaveToFile {
             "ALT_SETTING:             Typ in the Camera ALT_SETTING: --> normaly from 0 to 10 ..." + String.format("\n    Stored Value: ALT_SETTING = %d", sALT_SETTING), ALT_SETTING0,
             "MaxPacketSize:           Typ in the Camera MaxPacketSize: --> normaly from 1 to 2 ..."+ String.format("\n     Stored Value: maxPacketSize = %d", smaxPacketSize) , maxPacketSize0, 
             "CamFormatIndex:          Typ in the Camera CamFormatIndex: --> normaly from 1 to 5 ... (This represents the Resolution)"+ String.format("\n     Stored Value: camFormatIndex = %d", scamFormatIndex) , camFormatIndex0,
-            "MJPEG = 0   // YUV = 1:  Typ in the Camera Frameformat: MJPEG = 0 YUV = 1 (means uncompressed) Note: Uncompressed are at least 10 different formats.\n      So the picture could be displayed in a wrong color way ... This format is for YUY2" + String.format("\n     Stored Value: VideoSetting = %d", svideoformat), videoformat0,
+            "MJPEG = 0   // YUV = 1:  Typ in the Camera Frameformat: MJPEG = 0 YUV = 1 (means uncompressed) Note: Uncompressed are at least 10 different formats.\n      So the picture could be displayed in a wrong color way ... This format is for YUY2" + String.format("\n     Stored Value: VideoSetting = %s", svideoformat), videoformat0,
             "CamFrameIndex:           Typ in the Camera camFrameIndex: --> normaly from 1 to 5 ...(This represents the Resolution)" + String.format("\n     Stored Value: camFrameIndex = %d", scamFrameIndex), camFrameIndex0,
             "ImageWidth:              Typ in the Camera imageWidth: --> Some formats are 640x480 or 1920x1240 ...(Only type in the Width --> 640 or 1920 .." + String.format("\n      Stored Value: imageWidth = %d", simageWidth), imageWidth0,
             "ImageHeight:             Typ in the Camera imageHeight: --> (Only type in the Width --> 480 or 1240 .." + String.format("\n     Stored Value: imageHeight = %d", simageHeight), imageHeight0,
@@ -210,7 +218,10 @@ public class SaveToFile {
             if (ALT_SETTING0.getText().isEmpty() == false)  sALT_SETTING = Integer.parseInt(ALT_SETTING0.getText());
             if (maxPacketSize0.getText().isEmpty() == false)  smaxPacketSize = Integer.parseInt(maxPacketSize0.getText());
             if (camFormatIndex0.getText().isEmpty() == false)  scamFormatIndex = Integer.parseInt(camFormatIndex0.getText());
-            if (videoformat0.getText().isEmpty() == false) svideoformat = Integer.parseInt(videoformat0.getText());
+            if (videoformat0.getText().isEmpty() == false){ 
+                if (Integer.parseInt(videoformat0.getText()) == 0) svideoformat = "mjpeg";
+                else if (Integer.parseInt(videoformat0.getText()) == 1) svideoformat = "yuy2";
+                else svideoformat = "unknown";}
             if (camFrameIndex0.getText().isEmpty() == false)  scamFrameIndex = Integer.parseInt(camFrameIndex0.getText());
             if (imageWidth0.getText().isEmpty() == false)  simageWidth = Integer.parseInt(imageWidth0.getText());
             if (imageHeight0.getText().isEmpty() == false)  simageHeight = Integer.parseInt(imageHeight0.getText());
@@ -347,7 +358,7 @@ public class SaveToFile {
             sendpunktadresse = (Byte) save.readObject();
             sdevicePath = (String) save.readObject();
             sALT_SETTING = (Integer) save.readObject();
-            svideoformat = (Integer) save.readObject();
+            svideoformat = (String) save.readObject();
             scamFormatIndex  = (Integer) save.readObject();  
             scamFrameIndex  = (Integer) save.readObject();
             simageWidth = (Integer) save.readObject();
@@ -364,9 +375,186 @@ public class SaveToFile {
         }
     }
     
+    public void setUpWithUvcValues(CameraSearch cs) {
+        
+        PhraseUvcDescriptor phrasedUvcDescriptor = cs.getPhrasedUvcDescriptor();
+        PhraseUvcDescriptor.FormatIndex formatIndex;
+        PhraseUvcDescriptor.FormatIndex.FrameIndex frameIndex;
+        int [] arrayFormatFrameIndexes = new int [phrasedUvcDescriptor.formatIndex.size()];
+        for (int i=0; i<phrasedUvcDescriptor.formatIndex.size(); i++) {
+            formatIndex = phrasedUvcDescriptor.getFormatIndex(i);
+            arrayFormatFrameIndexes[i] = formatIndex.frameIndex.size();
+        }
+        int [] maxPacketSize = cs.maxPacketSizeArray;
+        int [] convertedMaxPacketSize = new int [maxPacketSize.length];
+        for (int a=1; a<convertedMaxPacketSize.length; a++) {
+            convertedMaxPacketSize [a] = returnConvertedValue(maxPacketSize[a]);
+        }
+        
+        
+        String [] textmsg = new String [convertedMaxPacketSize.length-1];
+        for (int a =1; a<convertedMaxPacketSize.length; a++) {
+            textmsg[a-1] = Integer.toString(convertedMaxPacketSize[a]);
+        }
+        String input = (String) JOptionPane.showInputDialog(null, "Select the Max Packet Size (Important for Mediathekdevices)", "Select the Max Packet Size", JOptionPane.QUESTION_MESSAGE, null,  textmsg, textmsg[textmsg.length-1]);
+        if (input != null) {
+            for (int i=1; i<convertedMaxPacketSize.length; i++) {
+                if (input.matches(textmsg[i-1]) ) {
+                    sALT_SETTING = i;
+                }
+            }
+            smaxPacketSize = Integer.parseInt(input.toString());
+            System.out.println("sALT_SETTING = " + sALT_SETTING);
+            System.out.println("smaxPacketSize = " + smaxPacketSize);
+        }
+        
+        JTextField packetsPerRequest0 = new JTextField();
+        JTextField activeUrbs0 = new JTextField();
+        
+        Object[] message = {
+            "PacketsPerRequest:       \nTyp in the Camera packetsPerRequest:   (at least 1 packet up to 8 or 32 or 64 or 128 or ...)" + String.format("\n     Stored Value: packetsPerRequest = %d", spacketsPerRequest), packetsPerRequest0,
+            "\n\nActiveURBs:              \nTyp in the Camera activeUrbs: At least 1 active URB (USB REQUEST BLOCK) up to 8, or 16, 64, or ..." + String.format("\n     Stored Value: activeUrbs = %d", sactiveUrbs), activeUrbs0,
+            "ActiveURBs means how many Blocks of Packages should run paralell to each other\nThis represents an IsochronousTransfer"
+        };
+        // password.getText().equals("h")
+        int option = JOptionPane.showConfirmDialog(null, message, String.format("Next you have to select how many Packets with the size of  - %d -   you want to send:" , smaxPacketSize), JOptionPane.OK_CANCEL_OPTION);
+        if (option == JOptionPane.OK_OPTION) {
+            if (packetsPerRequest0.getText().isEmpty() == false)  spacketsPerRequest = Integer.parseInt(packetsPerRequest0.getText());
+            if (activeUrbs0.getText().isEmpty() == false)  sactiveUrbs = Integer.parseInt(activeUrbs0.getText());
+            System.out.println("Input saved");
+        } 
+        int [] numberFormatIndexes = new int [phrasedUvcDescriptor.formatIndex.size()];
+        textmsg = new String [phrasedUvcDescriptor.formatIndex.size()];
+        for (int a =0; a<phrasedUvcDescriptor.formatIndex.size(); a++) {
+            formatIndex = phrasedUvcDescriptor.getFormatIndex(a);
+            
+            System.out.println("videoformat = " + formatIndex.videoformat);
+            if (formatIndex.videoformat == PhraseUvcDescriptor.FormatIndex.Videoformat.yuy2) System.out.println("PhraseUvcDescriptor.FormatIndex.Videoformat.yuy2 = " + PhraseUvcDescriptor.FormatIndex.Videoformat.yuy2);
+            else System.out.println(" ............");
+            
+            numberFormatIndexes[a] = formatIndex.formatIndexNumber;
+            System.out.println("numberFormatIndexes[a] = " + numberFormatIndexes[a]);
+            textmsg[a] = formatIndex.videoformat.toString();
+        } 
+        input = (String) JOptionPane.showInputDialog(null, "             Select the FormatIndex              ", "This Videoformats are supported of your camera", JOptionPane.QUESTION_MESSAGE, null,  textmsg, textmsg[textmsg.length-1]);
+        if (input != null) {
+            svideoformat = (input.toString());
+            for (int i=0; i<textmsg.length; i++) {
+                if (input.matches(textmsg[i]) ) {
+                    scamFormatIndex = numberFormatIndexes[i];
+                    formatIndex = phrasedUvcDescriptor.getFormatIndex(i);
+                    System.out.println("svideoformat = " + svideoformat);
+                    System.out.println("scamFormatIndex = " + scamFormatIndex);
+                    String[] textmessage = new String [formatIndex.numberOfFrameDescriptors];
+                    String inp;
+                    for (int j=0; j<formatIndex.numberOfFrameDescriptors; j++) {
+                        frameIndex = formatIndex.getFrameIndex(j);
+                        StringBuilder stringb = new StringBuilder();
+                        stringb.append(Integer.toString(frameIndex.wWidth));
+                        stringb.append(" x ");
+                        stringb.append(Integer.toString(frameIndex.wHeight));
+                        textmessage[j] = stringb.toString();
+                    }
+                    inp = (String) JOptionPane.showInputDialog(null, "Select the camera Resolution", "Following Resolutions are supported:", JOptionPane.QUESTION_MESSAGE, null,  textmessage, textmessage[textmessage.length-1]);
+                    if (inp != null) {
+                        for (int j=0; j<formatIndex.numberOfFrameDescriptors; j++) {
+                            if (inp.equals(textmessage[j])) {
+                                frameIndex = formatIndex.getFrameIndex(j);
+                                
+                                scamFrameIndex = frameIndex.frameIndex;
+                                System.out.println("scamFrameIndex = " + scamFrameIndex);
+                                simageWidth = frameIndex.wWidth;
+                                simageHeight = frameIndex.wHeight;
+                                
+                                String [] text = new String [frameIndex.dwFrameInterval.length];
+                                for (int k=0; k<text.length; k++) {
+                                    text[k] = Integer.toString(frameIndex.dwFrameInterval[k]);
+                                }
+                                String textInput = (String) JOptionPane.showInputDialog(null, String.format("Example: 333333 = 30 fps (Frames per Secound);   666666 = 15 fps\nA higher value means less Pictures per Secound\nOne Frame is one Picture."), "Select the FrameIntervall", JOptionPane.QUESTION_MESSAGE, null,  text, text[text.length-1]);
+                                if (textInput != null) {
+                                    scamFrameInterval = Integer.parseInt(textInput);
+                                    System.out.println("scamFrameInterval = " + scamFrameInterval);
+                                }
+                            } 
+                        }
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                }
+            }
+            
+        }
+        
+        Object[] options = {"Save to a File", "Don't Save !"};
+        option = JOptionPane.showOptionDialog(null, "Would you like to save the settings to a file?" ,"Save the Settings ?", JOptionPane.YES_NO_OPTION,JOptionPane.QUESTION_MESSAGE,null,options , options[0]);
+        if (option == JOptionPane.OK_OPTION) {
+            String name;
+            /*
+                Object[] options2 = {"Use the standard path", "Select new filepath"};
+                option = JOptionPane.showOptionDialog(null, String.format("Would you like to use the standard filepath?\nThe Filepath is:   %s" , rootPath ),"Filepath ...", JOptionPane.YES_NO_OPTION,JOptionPane.QUESTION_MESSAGE,null,options2 , options2[0]);
+                if (option != JOptionPane.OK_OPTION){
+                    name = JOptionPane.showInputDialog("Please type in the Path:   (Example:    /home/user/camera/  )");
+                    rootPath = name;
+                }
+                */
+            paths = new ArrayList<>(50);
+                
+            File s = new File(saveFilePath).getAbsoluteFile();
+            s.getParentFile().mkdirs();
+            String filePath = s.getParent();
+            filePath += "/";
+                
+            recursiveFind(Paths.get(s.getParent()), System.out::println);
+            //recursiveFind(Paths.get(rootPath), p -> {if (p.toFile().getName().toString().equals("src")) { System.out.println(p); }});
+            System.out.println("Anzahl der Dateien: " + paths.size() + "\n");
+            for (int i = 0; i < paths.size(); i++) {
+                System.out.println( paths.get(i) );
+            }
+            StringBuilder stringBuilder = new StringBuilder();
+            for (int i = 0; i < paths.size(); i++) {
+                stringBuilder.append(String.format("%d   ->   ", (i+1)));
+                stringBuilder.append(paths.get(i));
+                stringBuilder.append("\n");
+            }
+            s = null;
+               
+            name = JOptionPane.showInputDialog(String.format("Please type the name of the savefile.\n   Following Files were stored in the directory:\n \n%s\n\n To select the First File Type in 1, or for the secound File 2\nOr Type in a name (without the Directory) (for example: camera)" , stringBuilder.toString() ));
+            if (name == null) JOptionPane.showMessageDialog(null, "save canceld","Save canceld", JOptionPane.INFORMATION_MESSAGE);
+            else if (name.isEmpty() == false) {
+                if (isInteger(name) == true) { 
+                    try { saveValueToFile(paths.get((Integer.parseInt(name)) - 1)); }
+                    catch (Exception e) { Logger.getLogger(Kam.class.getName()).log(Level.SEVERE, null, e); JOptionPane.showMessageDialog(null, "Error saving the file","Error while saving the file", JOptionPane.ERROR_MESSAGE);}   
+                } else {saveValueToFile(filePath  += name += ".sav");      }
+            } 
+        }
+    }
     
+    private int returnConvertedValue(int wSize){
+        String st = Integer.toBinaryString(wSize);
+        StringBuilder result = new StringBuilder();
+        result.append(st);
+        //System.out.println("Integer.parseInt(result.toString(), 2) = " + Integer.parseInt(result.toString()));
+        if (result.length()<12) return Integer.parseInt(result.toString(), 2);
+        else if (result.length() == 12) {
+            String a = result.substring(0, 1);
+            String b = result.substring(1, 12);
+            int c = Integer.parseInt(a, 2);
+            int d = Integer.parseInt(b, 2);
+            return (c+1)*d;
+        } else {
+            String a = result.substring(0, 2);
+            String b = result.substring(2,13);
+            int c = Integer.parseInt(a, 2);
+            int d = Integer.parseInt(b, 2);
+            return (c+1)*d;
+        }
+    }
     
-    
+   
     
 }
      

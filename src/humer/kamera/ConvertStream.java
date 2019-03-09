@@ -89,10 +89,10 @@ public class ConvertStream {
         }
     }
     
-    public byte[] processReceivedVideoFrame(byte[] frameData, int videoformat){
+    public byte[] processReceivedVideoFrame(byte[] frameData, String videoformat){
         
         switch (videoformat) {
-            case 0:
+            case "mjpeg":
                 byte[] jpegFrameData = convertMjpegFrameToJpegKamera(frameData);
 
                 //   String fileName = new File(Environment.getExternalStorageDirectory(), "temp_usbcamtest1.jpg").getPath();
@@ -119,7 +119,7 @@ public class ConvertStream {
                 }
                 return jpegFrameData;
                 
-            case 1:
+            case "yuy2":
                 a ++;
 
                 Mat yuv = new Mat(imageHeight, imageWidth, CV_8UC2, new BytePointer(frameData));

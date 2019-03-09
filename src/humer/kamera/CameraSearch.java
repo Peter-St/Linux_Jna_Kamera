@@ -32,9 +32,12 @@ import org.usb4java.LibUsb;
 import org.usb4java.LibUsbException;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
+
 
 /**
  *
@@ -46,16 +49,25 @@ public class CameraSearch {
     private static javax.swing.JTextPane infoPanel;
     private static javax.swing.JScrollPane infoPanelScrollPane;
     private ArrayList<Device> device = new ArrayList<>();
+    private PhraseUvcDescriptor phrasedUvcDescriptor;
     private int camera;
-    private String cameraDescripton;
     StringBuilder stringBuilder;
+    private String cameraDescripton;
     public int BUS, DEVICE;
     public byte endpunktadresse;
+    public boolean uvcDescriptorPhrased = false;
+    public int[] maxPacketSizeArray;
     
+    
+        
     
     
     public CameraSearch() {
       stringBuilder = new StringBuilder();
+    }
+    
+    public PhraseUvcDescriptor getPhrasedUvcDescriptor() {
+        return phrasedUvcDescriptor;
     }
     
     
@@ -91,22 +103,26 @@ public class CameraSearch {
         Interface	usbInterface = null;
         EndpointDescriptor ep_desc;
         InterfaceDescriptor iDescriptor;
-        ConfigDescriptor config = new ConfigDescriptor();        
+        ConfigDescriptor config = new ConfigDescriptor();
         System.out.println(" ");
         System.out.println("LIST DEVICE ");
         System.out.println(" ");
         stringBuilder.append("\n\nLIST DEVICE\n\n");
         // get for this device the number of all configuration possible 
+        //normally 1 configuration per device.
         for (int i = 0; i < descriptor.bNumConfigurations(); i++) {
             result = LibUsb.getConfigDescriptor(camDevice, (byte) i, config);
             System.out.println("Es wurden   " +config.bNumInterfaces()+"   Interfaces gezählt."  );
 	    stringBuilder.append(String.format("Es wurden:   %d    Interfaces gezählt.\n", config.bNumInterfaces())  );   
-            int interfaces = config.bNumInterfaces();
-            for (int j = 0; j < interfaces; j++) {
+            for (int j = 0; j < config.bNumInterfaces(); j++) {
                 usbInterface = config.iface()[j]; 
                 System.out.println("");
                 stringBuilder.append("\n");
                 boolean first = true;
+                System.out.println("Interface: " + (j));
+                System.out.println("So viele Altsettings sind vorhanden: " + usbInterface.numAltsetting());
+                if (j==1) maxPacketSizeArray = new int [usbInterface.numAltsetting()];
+                                
                 for (int k = 0; k < usbInterface.numAltsetting(); k++) { 
                         iDescriptor = usbInterface.altsetting()[k]; 
                         if (first) { 
@@ -115,12 +131,29 @@ public class CameraSearch {
                             stringBuilder.append(String.format("Interface %d:   [ id = %d ]   [ class =  %d ]  [ subclass = %d ] [ protocol = %d ] \n\n", (j+1), iDescriptor.bInterfaceNumber(), iDescriptor.bInterfaceClass(), iDescriptor.bInterfaceSubClass(), iDescriptor.bInterfaceProtocol()    ) );
                             System.out.println("[ -Interface " + (j+1) + " - ] [: id=" + iDescriptor.bInterfaceNumber() + " ] [ class=" + iDescriptor.bInterfaceClass() + " ] [ subclass=" + iDescriptor.bInterfaceSubClass() + " ] [ protocol=" + iDescriptor.bInterfaceProtocol() +" ] ");
                         }
+                        
+                        
+                        if (k == 0 && j == 1) {
+                            // get the extra descriptor for the video resolution and video intervall
+                            
+                            ByteBuffer bb = ByteBuffer.allocate(iDescriptor.extraLength());
+                            bb = iDescriptor.extra();
+                            System.out.println("Extra Bytebuffer:\nByteBuffer length =" + bb.limit());
+                            phrasedUvcDescriptor = new PhraseUvcDescriptor(bb);
+                            int ret = phrasedUvcDescriptor.phraseUvcData();
+                            if (ret == 0) {
+                                uvcDescriptorPhrased = true;
+                            }
+                        }
+                        
                         first = false;                        
                         int deviceInterface = (int) iDescriptor.bInterfaceNumber(); 
                         int endpoints = iDescriptor.bNumEndpoints();
-                        //System.out.print("So viele Endpunkte sind vorhanden: " + endpoints);
+                        //First Altsetting of the VideoStreamInterface has no Endpoint
+                        //Normally 1 Endpoint per Altsetting
                         for (int o = 0; o < endpoints; o++) {
                             ep_desc = iDescriptor.endpoint()[o];
+                            if (j==1 && k > 0) maxPacketSizeArray[k] = ep_desc.wMaxPacketSize();
                             System.out.println("[- Altsetting: " + k + "] [: Endpunktadresse = " + String.format("0x%01X", ep_desc.bEndpointAddress()) + "] [Length= " + ep_desc.bLength() + "] [ attrs= " + ep_desc.bmAttributes() + "] [ interval = " + ep_desc.bInterval() + "] [ maxPacketSize = " + ep_desc.wMaxPacketSize() + " ] [ type = " + ep_desc.bDescriptorType()+"] ");
                             stringBuilder.append(String.format("[- Altsetting: %d ] [: Endpunktadresse = 0x%01X ] [Length= %d] [ attrs= %d ] [ interval = %d ] [ maxPacketSize = %d ] [ type = %d ]\n", k , ep_desc.bEndpointAddress(), ep_desc.bLength(), ep_desc.bmAttributes(), ep_desc.bInterval(), ep_desc.wMaxPacketSize(), ep_desc.bDescriptorType()));
                             if ((ep_desc.bmAttributes() & LibUsb.TRANSFER_TYPE_MASK) == LibUsb.TRANSFER_TYPE_ISOCHRONOUS && ep_desc.wMaxPacketSize() != 0) {
@@ -136,6 +169,7 @@ public class CameraSearch {
         LibUsb.freeConfigDescriptor(config);
         //stringBuilder.append(cameraDescripton);  
         cameraDescripton = stringBuilder.toString();
+        
         //kam.stringBuilder.append(cameraDescripton);
         //kam.infoPanelSetText(cameraDescripton);
         //infoPanel.setText(cameraDescripton);
@@ -263,5 +297,6 @@ public class CameraSearch {
   		return null;
 
      } 
+     
     
 }

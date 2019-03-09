@@ -5,6 +5,7 @@ import com.sun.jna.LastErrorException;
 import com.sun.jna.Memory;
 import com.sun.jna.Native;
 import com.sun.jna.ptr.IntByReference;
+import static humer.kamera.SaveToFile.paths;
 import static humer.kamera.usbdevice_fs.USBDEVFS_CLAIMINTERFACE;
 import static humer.kamera.usbdevice_fs.USBDEVFS_CONTROL;
 import static humer.kamera.usbdevice_fs.USBDEVFS_DISCONNECT;
@@ -38,6 +39,7 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.FileNotFoundException;
 import java.text.SimpleDateFormat;
+import javax.swing.JOptionPane;
 
 @SuppressWarnings("UseOfSystemOutOrSystemErr")
 public class Kam extends javax.swing.JFrame {
@@ -59,7 +61,7 @@ public class Kam extends javax.swing.JFrame {
     
     public static int imageWidth = 1280;
     public static int imageHeight = 720;
-    public static int videoformat = 0;
+    public static String videoformat = "mjpeg";
 
     public static String DEVICE_PATH = String.format("/dev/bus/usb/%03d/%03d", BUS, DEVICE);
 
@@ -223,7 +225,6 @@ public class Kam extends javax.swing.JFrame {
     
     public Kam(int a) {
         
-        
     }
 
     /**
@@ -383,6 +384,14 @@ public class Kam extends javax.swing.JFrame {
         stringBuilder = new StringBuilder();
         stringBuilder.append(cs.autoSearchTheCamera());
         infoPanel.setText(stringBuilder.toString());
+        if (cs.uvcDescriptorPhrased == true) {
+            Object[] options = {"Select from UVC Values", "Dismiss !"};
+            int option = JOptionPane.showOptionDialog(null, "A UVC Camera has been found" ,"Would you like to set up the camera with the detected UVC values ?", JOptionPane.YES_NO_OPTION,JOptionPane.QUESTION_MESSAGE,null,options , options[0]);
+            if (option == JOptionPane.OK_OPTION) {
+                stf = new SaveToFile();
+                stf.setUpWithUvcValues(cs);
+            }
+        }
         updateValues(OptionForInit.camerasearch);
     }//GEN-LAST:event_AutoSearchTheCamerasActionPerformed
 
@@ -846,10 +855,20 @@ public class Kam extends javax.swing.JFrame {
                     DEVICE = cs.DEVICE;
                     ENDPOINT_ADDRESS = cs.endpunktadresse;
                     DEVICE_PATH = String.format("/dev/bus/usb/%03d/%03d", BUS, DEVICE);
+                    ALT_SETTING = stf.sALT_SETTING;
+                    videoformat = stf.svideoformat;
+                    CAM_FORMAT_INDEX = stf.scamFormatIndex;
+                    imageWidth = stf.simageWidth;
+                    imageHeight = stf.simageHeight;
+                    CAM_FRAME_INDEX = stf.scamFrameIndex;
+                    CAM_FRAME_INTERVAL = stf.scamFrameInterval;
+                    PACKETS_PER_REQUEST = stf.spacketsPerRequest;
+                    MAX_PACKET_SIZE = stf.smaxPacketSize;
+                    ACTIVE_URBS = stf.sactiveUrbs;
                     System.out.printf("CameraSearch entries setted \n");
                 } else System.out.printf("CameraSearch = NULL ... using default entries .. \n");
             default: break;
         }
-        System.out.printf("ALT_SETTING = " + ALT_SETTING + "   /   devpath = " + DEVICE_PATH + "  /  camFrameInterval  = " + CAM_FRAME_INTERVAL + "  /  bus = " + BUS + "  /  imageWidth = " + imageWidth);
+        System.out.printf("CAM_FRAME_INDEX = " + CAM_FRAME_INDEX + "   /   devpath = " + DEVICE_PATH + "  /  camFrameInterval  = " + CAM_FRAME_INTERVAL + "  /  bus = " + BUS + "  /  imageWidth = " + imageWidth+ "  /  imageHeight = " + imageHeight);
     }
 }
