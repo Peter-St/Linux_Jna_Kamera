@@ -485,9 +485,38 @@ public class SaveToFile {
             }
             
         }
+        /*
+        
+    */
+    }
+    
+    private int returnConvertedValue(int wSize){
+        String st = Integer.toBinaryString(wSize);
+        StringBuilder result = new StringBuilder();
+        result.append(st);
+        //System.out.println("Integer.parseInt(result.toString(), 2) = " + Integer.parseInt(result.toString()));
+        if (result.length()<12) return Integer.parseInt(result.toString(), 2);
+        else if (result.length() == 12) {
+            String a = result.substring(0, 1);
+            String b = result.substring(1, 12);
+            int c = Integer.parseInt(a, 2);
+            int d = Integer.parseInt(b, 2);
+            return (c+1)*d;
+        } else {
+            String a = result.substring(0, 2);
+            String b = result.substring(2,13);
+            int c = Integer.parseInt(a, 2);
+            int d = Integer.parseInt(b, 2);
+            return (c+1)*d;
+        }
+    }
+    
+    public void saveValueToFileUvcDescriptor () {
+        
+        fetchTheValues();
         
         Object[] options = {"Save to a File", "Don't Save !"};
-        option = JOptionPane.showOptionDialog(null, "Would you like to save the settings to a file?" ,"Save the Settings ?", JOptionPane.YES_NO_OPTION,JOptionPane.QUESTION_MESSAGE,null,options , options[0]);
+        int option = JOptionPane.showOptionDialog(null, "Would you like to save the settings to a file?" ,"Save the Settings ?", JOptionPane.YES_NO_OPTION,JOptionPane.QUESTION_MESSAGE,null,options , options[0]);
         if (option == JOptionPane.OK_OPTION) {
             String name;
             /*
@@ -497,7 +526,7 @@ public class SaveToFile {
                     name = JOptionPane.showInputDialog("Please type in the Path:   (Example:    /home/user/camera/  )");
                     rootPath = name;
                 }
-                */
+                */ 
             paths = new ArrayList<>(50);
                 
             File s = new File(saveFilePath).getAbsoluteFile();
@@ -527,31 +556,12 @@ public class SaveToFile {
                     catch (Exception e) { Logger.getLogger(Kam.class.getName()).log(Level.SEVERE, null, e); JOptionPane.showMessageDialog(null, "Error saving the file","Error while saving the file", JOptionPane.ERROR_MESSAGE);}   
                 } else {saveValueToFile(filePath  += name += ".sav");      }
             } 
+            
         }
+            
+            
+        
     }
-    
-    private int returnConvertedValue(int wSize){
-        String st = Integer.toBinaryString(wSize);
-        StringBuilder result = new StringBuilder();
-        result.append(st);
-        //System.out.println("Integer.parseInt(result.toString(), 2) = " + Integer.parseInt(result.toString()));
-        if (result.length()<12) return Integer.parseInt(result.toString(), 2);
-        else if (result.length() == 12) {
-            String a = result.substring(0, 1);
-            String b = result.substring(1, 12);
-            int c = Integer.parseInt(a, 2);
-            int d = Integer.parseInt(b, 2);
-            return (c+1)*d;
-        } else {
-            String a = result.substring(0, 2);
-            String b = result.substring(2,13);
-            int c = Integer.parseInt(a, 2);
-            int d = Integer.parseInt(b, 2);
-            return (c+1)*d;
-        }
-    }
-    
-   
     
 }
      

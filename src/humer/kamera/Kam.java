@@ -133,7 +133,7 @@ public class Kam extends javax.swing.JFrame {
     public void ioctlControltransfer() {
         Memory buffer = new Memory(26);
         buffer.clear();
-        buffer.setByte(0, (byte) 0x01); // what fields shall be kept fixed (0x01: dwFrameInterval)
+        buffer.setByte(0, (byte) 0x03); // what fields shall be kept fixed (0x01: dwFrameInterval)    (0x08: wCompWindowSize)   (0x04: wPFrameRate)     (0x02:  wKeyFrameRate)  (0x10: wCompWindowSize)
         buffer.setByte(1, (byte) 0x00); //
         buffer.setByte(2, (byte) CAM_FORMAT_INDEX); // video format index
         buffer.setByte(3, (byte) CAM_FRAME_INDEX);  // video frame index // bFrameIndex: 1 = 640 x 360;       2 = 176 x 144;     3 =    320 x 240;      4 = 352 x 288;     5 = 640 x 480;
@@ -391,6 +391,7 @@ public class Kam extends javax.swing.JFrame {
                 stf = new SaveToFile();
                 stf.setUpWithUvcValues(cs);
                 updateValues(OptionForInit.camerasearchUvc);
+                stf.saveValueToFileUvcDescriptor();
             } else updateValues(OptionForInit.camerasearch);
 
         } else updateValues(OptionForInit.camerasearch);
@@ -879,6 +880,6 @@ public class Kam extends javax.swing.JFrame {
                 break;
             default: break;
         }
-        System.out.printf("CAM_FRAME_INDEX = " + CAM_FRAME_INDEX + "   /   devpath = " + DEVICE_PATH + "  /  camFrameInterval  = " + CAM_FRAME_INTERVAL + "  /  bus = " + BUS + "  /  imageWidth = " + imageWidth+ "  /  imageHeight = " + imageHeight);
+        System.out.printf("ALT_SETTING = " + ALT_SETTING + "   /   MAX_PACKET_SIZE = " + MAX_PACKET_SIZE + "   /    CAM_FRAME_INDEX = " + CAM_FRAME_INDEX + "   /   devpath = " + DEVICE_PATH + "  /  camFrameInterval  = " + CAM_FRAME_INTERVAL + "  /  bus = " + BUS + "  /  imageWidth = " + imageWidth+ "  /  imageHeight = " + imageHeight);
     }
 }
