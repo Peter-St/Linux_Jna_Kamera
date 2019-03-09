@@ -67,7 +67,6 @@ public class PhraseUvcDescriptor {
         ArrayList<byte []> frameData = new ArrayList<>();
         int formatcnt = 0;
         byte[] formatData = null;
-        FormatIndex.Videoformat videoFormat; 
         int positionAbsolute = 0;
         int posStart, posEnd;
         do  {
@@ -90,23 +89,22 @@ public class PhraseUvcDescriptor {
                 uvcData.get(uncompressedFrameData, 0 ,descSize);
                 frameData.add(uncompressedFrameData);
                 if (uvcData.get(pos + descSize + 2) != VS_frame_uncompressed) {
-                    videoFormat = FormatIndex.Videoformat.yuy2;
                     FormatIndex formatUncomprIndex = new FormatIndex(formatData, frameData);
                     formatUncomprIndex.init();
                     formatIndex.add(formatUncomprIndex);
                 }
             }
-            else if (descSubType == VS_format_mjpeg) {
+            if (descSubType == VS_format_mjpeg) {
                 formatData = new byte [descSize];
                 uvcData.get(formatData, 0 ,descSize);
                 frameData = new ArrayList<>();
+                printData(formatData);
             }
             else if (descSubType == VS_frame_mjpeg) {
-                byte [] uncompressedFrameData = new byte [descSize];
-                uvcData.get(uncompressedFrameData, 0 ,descSize);
-                frameData.add(uncompressedFrameData);
-                if (uvcData.get(pos + descSize + 2) != VS_frame_uncompressed) {
-                    videoFormat = FormatIndex.Videoformat.yuy2;
+                byte [] mjpegFrameData = new byte [descSize];
+                uvcData.get(mjpegFrameData, 0 ,descSize);
+                frameData.add(mjpegFrameData);
+                if (uvcData.get(pos + descSize + 2) != VS_frame_mjpeg) {
                     FormatIndex formatUncomprIndex = new FormatIndex(formatData, frameData);
                     formatUncomprIndex.init();
                     formatIndex.add(formatUncomprIndex);
@@ -137,7 +135,7 @@ public class PhraseUvcDescriptor {
     
     public static class FormatIndex {
         
-        public ArrayList<PhraseUvcDescriptor.FormatIndex.FrameIndex> frameIndex = new ArrayList<>();
+        public final ArrayList<PhraseUvcDescriptor.FormatIndex.FrameIndex> frameIndex = new ArrayList<>();
         public final byte[] formatData;
         public final ArrayList<byte []> frameData;
         public int formatIndexNumber;
@@ -175,9 +173,10 @@ public class PhraseUvcDescriptor {
                 }
                 else guidFormat = "unknown";
             }
-            if (formatData[2] ==  VS_format_mjpeg ) {
+            else if (formatData[2] ==  VS_format_mjpeg ) {
                 videoformat = Videoformat.mjpeg;
             }
+            
             for (int i = 0; i < frameData.size(); i++) {
                 byte[] buf = new byte [frameData.get(i).length];
                 buf = frameData.get(i);

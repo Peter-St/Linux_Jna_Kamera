@@ -427,8 +427,7 @@ public class SaveToFile {
         textmsg = new String [phrasedUvcDescriptor.formatIndex.size()];
         for (int a =0; a<phrasedUvcDescriptor.formatIndex.size(); a++) {
             formatIndex = phrasedUvcDescriptor.getFormatIndex(a);
-            
-            System.out.println("videoformat = " + formatIndex.videoformat);
+            System.out.println("formatIndex.videoformat = " + formatIndex.videoformat);
             if (formatIndex.videoformat == PhraseUvcDescriptor.FormatIndex.Videoformat.yuy2) System.out.println("PhraseUvcDescriptor.FormatIndex.Videoformat.yuy2 = " + PhraseUvcDescriptor.FormatIndex.Videoformat.yuy2);
             else System.out.println(" ............");
             
@@ -443,8 +442,6 @@ public class SaveToFile {
                 if (input.matches(textmsg[i]) ) {
                     scamFormatIndex = numberFormatIndexes[i];
                     formatIndex = phrasedUvcDescriptor.getFormatIndex(i);
-                    System.out.println("svideoformat = " + svideoformat);
-                    System.out.println("scamFormatIndex = " + scamFormatIndex);
                     String[] textmessage = new String [formatIndex.numberOfFrameDescriptors];
                     String inp;
                     for (int j=0; j<formatIndex.numberOfFrameDescriptors; j++) {
