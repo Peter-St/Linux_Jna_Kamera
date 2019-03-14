@@ -42,9 +42,11 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import humer.kamera.Kam;
 import java.awt.Component;
+import java.awt.Label;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.PrintWriter;
+import javax.swing.table.DefaultTableModel;
 
 
 /**
@@ -78,10 +80,17 @@ public class SaveToFile {
     static ArrayList<String> paths = new ArrayList<>(50);
     private static ArrayList<String> saveValues = new ArrayList<>(20);
     
+    private int [] arrayFormatFrameIndexes;
+    private int [] convertedMaxPacketSize;
+    private int [] numberFormatIndexes;
+    private String[] frameDescriptorsArray;
+    private String [] dwFrameIntervalArray;
+    private String [] convertedMaxPacketSizeArray;
+    private String [] videoFormatArray;
+    private PhraseUvcDescriptor phrasedUvcDescriptor;
+    private PhraseUvcDescriptor.FormatIndex formatIndex;
+    private PhraseUvcDescriptor.FormatIndex.FrameIndex frameIndex;
     
-    
-    
-    double emailvalue;
 
     public SaveToFile (){
         initKamClass();
@@ -375,31 +384,32 @@ public class SaveToFile {
         }
     }
     
+    
+    
+    
     public void setUpWithUvcValues(CameraSearch cs) {
         
-        PhraseUvcDescriptor phrasedUvcDescriptor = cs.getPhrasedUvcDescriptor();
-        PhraseUvcDescriptor.FormatIndex formatIndex;
-        PhraseUvcDescriptor.FormatIndex.FrameIndex frameIndex;
-        int [] arrayFormatFrameIndexes = new int [phrasedUvcDescriptor.formatIndex.size()];
+        phrasedUvcDescriptor = cs.getPhrasedUvcDescriptor();
+        arrayFormatFrameIndexes = new int [phrasedUvcDescriptor.formatIndex.size()];
         for (int i=0; i<phrasedUvcDescriptor.formatIndex.size(); i++) {
             formatIndex = phrasedUvcDescriptor.getFormatIndex(i);
             arrayFormatFrameIndexes[i] = formatIndex.frameIndex.size();
         }
         int [] maxPacketSize = cs.maxPacketSizeArray;
-        int [] convertedMaxPacketSize = new int [maxPacketSize.length];
+        convertedMaxPacketSize = new int [maxPacketSize.length];
         for (int a=1; a<convertedMaxPacketSize.length; a++) {
             convertedMaxPacketSize [a] = returnConvertedValue(maxPacketSize[a]);
         }
         
         
-        String [] textmsg = new String [convertedMaxPacketSize.length-1];
+        convertedMaxPacketSizeArray = new String [convertedMaxPacketSize.length-1];
         for (int a =1; a<convertedMaxPacketSize.length; a++) {
-            textmsg[a-1] = Integer.toString(convertedMaxPacketSize[a]);
+            convertedMaxPacketSizeArray[a-1] = Integer.toString(convertedMaxPacketSize[a]);
         }
-        String input = (String) JOptionPane.showInputDialog(null, "Select the Max Packet Size (Important for Mediathekdevices)", "Select the Max Packet Size", JOptionPane.QUESTION_MESSAGE, null,  textmsg, textmsg[textmsg.length-1]);
+        String input = (String) JOptionPane.showInputDialog(null, "Select the Max Packet Size (Important for Mediathekdevices)", "Select the Max Packet Size", JOptionPane.QUESTION_MESSAGE, null,  convertedMaxPacketSizeArray, convertedMaxPacketSizeArray[convertedMaxPacketSizeArray.length-1]);
         if (input != null) {
             for (int i=1; i<convertedMaxPacketSize.length; i++) {
-                if (input.matches(textmsg[i-1]) ) {
+                if (input.matches(convertedMaxPacketSizeArray[i-1]) ) {
                     sALT_SETTING = i;
                 }
             }
@@ -423,8 +433,8 @@ public class SaveToFile {
             if (activeUrbs0.getText().isEmpty() == false)  sactiveUrbs = Integer.parseInt(activeUrbs0.getText());
             System.out.println("Input saved");
         } 
-        int [] numberFormatIndexes = new int [phrasedUvcDescriptor.formatIndex.size()];
-        textmsg = new String [phrasedUvcDescriptor.formatIndex.size()];
+        numberFormatIndexes = new int [phrasedUvcDescriptor.formatIndex.size()];
+        videoFormatArray = new String [phrasedUvcDescriptor.formatIndex.size()];
         for (int a =0; a<phrasedUvcDescriptor.formatIndex.size(); a++) {
             formatIndex = phrasedUvcDescriptor.getFormatIndex(a);
             System.out.println("formatIndex.videoformat = " + formatIndex.videoformat);
@@ -433,16 +443,16 @@ public class SaveToFile {
             
             numberFormatIndexes[a] = formatIndex.formatIndexNumber;
             System.out.println("numberFormatIndexes[a] = " + numberFormatIndexes[a]);
-            textmsg[a] = formatIndex.videoformat.toString();
+            videoFormatArray[a] = formatIndex.videoformat.toString();
         } 
-        input = (String) JOptionPane.showInputDialog(null, "             Select the FormatIndex              ", "This Videoformats are supported of your camera", JOptionPane.QUESTION_MESSAGE, null,  textmsg, textmsg[textmsg.length-1]);
+        input = (String) JOptionPane.showInputDialog(null, "             Select the FormatIndex              ", "This Videoformats are supported of your camera", JOptionPane.QUESTION_MESSAGE, null,  videoFormatArray, videoFormatArray[videoFormatArray.length-1]);
         if (input != null) {
             svideoformat = (input.toString());
-            for (int i=0; i<textmsg.length; i++) {
-                if (input.matches(textmsg[i]) ) {
+            for (int i=0; i<videoFormatArray.length; i++) {
+                if (input.matches(videoFormatArray[i]) ) {
                     scamFormatIndex = numberFormatIndexes[i];
                     formatIndex = phrasedUvcDescriptor.getFormatIndex(i);
-                    String[] textmessage = new String [formatIndex.numberOfFrameDescriptors];
+                    frameDescriptorsArray = new String [formatIndex.numberOfFrameDescriptors];
                     String inp;
                     for (int j=0; j<formatIndex.numberOfFrameDescriptors; j++) {
                         frameIndex = formatIndex.getFrameIndex(j);
@@ -450,12 +460,12 @@ public class SaveToFile {
                         stringb.append(Integer.toString(frameIndex.wWidth));
                         stringb.append(" x ");
                         stringb.append(Integer.toString(frameIndex.wHeight));
-                        textmessage[j] = stringb.toString();
+                        frameDescriptorsArray[j] = stringb.toString();
                     }
-                    inp = (String) JOptionPane.showInputDialog(null, "Select the camera Resolution", "Following Resolutions are supported:", JOptionPane.QUESTION_MESSAGE, null,  textmessage, textmessage[textmessage.length-1]);
+                    inp = (String) JOptionPane.showInputDialog(null, "Select the camera Resolution", "Following Resolutions are supported:", JOptionPane.QUESTION_MESSAGE, null,  frameDescriptorsArray, frameDescriptorsArray[frameDescriptorsArray.length-1]);
                     if (inp != null) {
                         for (int j=0; j<formatIndex.numberOfFrameDescriptors; j++) {
-                            if (inp.equals(textmessage[j])) {
+                            if (inp.equals(frameDescriptorsArray[j])) {
                                 frameIndex = formatIndex.getFrameIndex(j);
                                 
                                 scamFrameIndex = frameIndex.frameIndex;
@@ -463,11 +473,11 @@ public class SaveToFile {
                                 simageWidth = frameIndex.wWidth;
                                 simageHeight = frameIndex.wHeight;
                                 
-                                String [] text = new String [frameIndex.dwFrameInterval.length];
-                                for (int k=0; k<text.length; k++) {
-                                    text[k] = Integer.toString(frameIndex.dwFrameInterval[k]);
+                                dwFrameIntervalArray = new String [frameIndex.dwFrameInterval.length];
+                                for (int k=0; k<dwFrameIntervalArray.length; k++) {
+                                    dwFrameIntervalArray[k] = Integer.toString(frameIndex.dwFrameInterval[k]);
                                 }
-                                String textInput = (String) JOptionPane.showInputDialog(null, String.format("Example: 333333 = 30 fps (Frames per Secound);   666666 = 15 fps\nA higher value means less Pictures per Secound\nOne Frame is one Picture."), "Select the FrameIntervall", JOptionPane.QUESTION_MESSAGE, null,  text, text[text.length-1]);
+                                String textInput = (String) JOptionPane.showInputDialog(null, String.format("Example: 333333 = 30 fps (Frames per Secound);   666666 = 15 fps\nA higher value means less Pictures per Secound\nOne Frame is one Picture."), "Select the FrameIntervall", JOptionPane.QUESTION_MESSAGE, null,  dwFrameIntervalArray, dwFrameIntervalArray[dwFrameIntervalArray.length-1]);
                                 if (textInput != null) {
                                     scamFrameInterval = Integer.parseInt(textInput);
                                     System.out.println("scamFrameInterval = " + scamFrameInterval);
@@ -562,6 +572,83 @@ public class SaveToFile {
             
         
     }
+    
+    public void startUvcEditSave() {
+        
+ 
+       
+        JComboBox<String> convertedMaxPacketSizeBox = new JComboBox<>(convertedMaxPacketSizeArray);
+        JComboBox<String> frameDescriptorsBox = new JComboBox<>(frameDescriptorsArray);
+        JComboBox<String> dwFrameIntervalBox = new JComboBox<>(dwFrameIntervalArray);
+        
+        
+        convertedMaxPacketSizeBox.setSelectedIndex(-1);
+        frameDescriptorsBox.setSelectedIndex(-1);
+        dwFrameIntervalBox.setSelectedIndex(-1);
+        
+        
+        JTextField packetsPerRequest0 = new JTextField();
+        JTextField activeUrbs0 = new JTextField();
+        
+        
+        JPanel panel = new JPanel(new GridLayout(0, 2));
+        panel.add(new Label(String.format("MaxPacketSize = %d", smaxPacketSize)));
+        panel.add(convertedMaxPacketSizeBox);
+        panel.add(new Label(String.format("Video Format = %dx%d" , simageWidth, simageHeight)));
+        panel.add(frameDescriptorsBox);
+        panel.add(new Label(String.format("FrameInterval = %d", scamFrameInterval)));
+        panel.add(dwFrameIntervalBox);
+        panel.add(new Label(String.format("PacketsPerRequest = %d", spacketsPerRequest)));
+        panel.add(packetsPerRequest0);
+        panel.add(new Label(String.format("ActiveUrbs = %d", sactiveUrbs)));
+        panel.add(activeUrbs0);
+        
+        
+        
+        
+        
+        int option = JOptionPane.showConfirmDialog(null, panel, String.format("Make your camera settings:" , smaxPacketSize), JOptionPane.OK_CANCEL_OPTION);
+        
+        if (option == JOptionPane.OK_OPTION) {
+            
+            if (packetsPerRequest0.getText().isEmpty() == false)  {
+                spacketsPerRequest = Integer.parseInt(packetsPerRequest0.getText());
+                System.out.println("spacketsPerRequest = " + spacketsPerRequest);
+            }
+            if (activeUrbs0.getText().isEmpty() == false)  {
+                sactiveUrbs = Integer.parseInt(activeUrbs0.getText());
+                System.out.println("sactiveUrbs = " + sactiveUrbs);
+            }
+            
+            
+            
+            if (convertedMaxPacketSizeBox.getSelectedItem() != null) {
+                String newConvertedMaxPacketSize = String.valueOf(convertedMaxPacketSizeBox.getSelectedItem());
+                for (int i=1; i<convertedMaxPacketSize.length; i++) {
+                    if (newConvertedMaxPacketSize.matches(convertedMaxPacketSizeArray[i-1]) ) {
+                        sALT_SETTING = i;
+                    }
+                }
+            
+                smaxPacketSize = Integer.parseInt(newConvertedMaxPacketSize);
+                System.out.println("sALT_SETTING = " + sALT_SETTING);
+                System.out.println("smaxPacketSize = " + smaxPacketSize);
+            }
+            
+            if (dwFrameIntervalBox.getSelectedItem() != null) {
+                scamFrameInterval = Integer.parseInt(String.valueOf(dwFrameIntervalBox.getSelectedItem()));
+                System.out.println("scamFrameInterval = " + scamFrameInterval);
+            }
+            
+            
+            
+            
+            
+        } 
+        
+    }
+        
+        
     
 }
      

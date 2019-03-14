@@ -350,7 +350,19 @@ public class Kam extends javax.swing.JFrame {
 
     private void EditTheValuesActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_EditTheValuesActionPerformed
         if (stf == null) stf = new SaveToFile();
-        stf.startEditSave();
+        //if (cs == null)  cs = new CameraSearch();
+        
+        if (cs != null) {
+            if (cs.uvcDescriptorPhrased == true) {
+                stf.startUvcEditSave();
+            } else {
+                stf.startEditSave();
+            }
+            
+        }  else {
+            stf.startEditSave();
+        }
+        
         updateValues(OptionForInit.savetofile);
     }//GEN-LAST:event_EditTheValuesActionPerformed
 
@@ -880,6 +892,6 @@ public class Kam extends javax.swing.JFrame {
                 break;
             default: break;
         }
-        System.out.printf("ALT_SETTING = " + ALT_SETTING + "   /   MAX_PACKET_SIZE = " + MAX_PACKET_SIZE + "   /    CAM_FRAME_INDEX = " + CAM_FRAME_INDEX + "   /   devpath = " + DEVICE_PATH + "  /  camFrameInterval  = " + CAM_FRAME_INTERVAL + "  /  bus = " + BUS + "  /  imageWidth = " + imageWidth+ "  /  imageHeight = " + imageHeight);
+        System.out.println("ALT_SETTING = " + ALT_SETTING + "   /   MAX_PACKET_SIZE = " + MAX_PACKET_SIZE + "   /    CAM_FRAME_INDEX = " + CAM_FRAME_INDEX + "   /   devpath = " + DEVICE_PATH + "  /  camFrameInterval  = " + CAM_FRAME_INTERVAL + "  /  bus = " + BUS + "  /  imageWidth = " + imageWidth+ "  /  imageHeight = " + imageHeight);
     }
 }
