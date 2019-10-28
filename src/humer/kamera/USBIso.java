@@ -10,6 +10,8 @@
 // This module is provided "as is", without warranties of any kind.
 //
 // Home page: http://www.source-code.biz/snippets/java/UsbIso
+//
+// Edited by Peter Stoiber 2019
 
 package humer.kamera;
 
